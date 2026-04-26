@@ -1,0 +1,105 @@
+# WECARE 3.0: Evidence-Based Caregiver Intervention App
+
+## Overview
+WECARE 3.0 is a bilingual, mobile-first, evidence-based caregiver intervention app designed to deliver personalized, multi-modal content to family caregivers. The app delivers a structured 7-week curriculum (6 days/week) with automated, rule-based personalization informed by care recipient functional status, caregiver relationship, baseline depression levels, and weekly Voice Journal assessments. Built in partnership with researchers and clinical teams, it supports embedded voice journaling for ongoing assessment, interactive learning with case studies, and robust admin controls for cohort-based, rule-driven content delivery.
+
+## Tech Stack
+- **Frontend**: React Native (iOS/Android), React Navigation  
+- **UI/UX**: NativeBase or React Native Paper (bilingual-first design)  
+- **Backend**: FastAPI (Python)  
+- **Database**: AWS (PostgreSQL via RDS or DynamoDB for real-time data)  
+- **Authentication**: AWS Cognito or Firebase Auth  
+- **Voice Journal Integration**: Custom integration with existing TestFlight app + API for data sync  
+- **Notifications**: Firebase Cloud Messaging (FCM) + AWS SNS  
+- **Admin Web Console**: Not sure  
+- **Analytics & Logging**: Not sure
+
+## App Flow
+
+### 1. Onboarding & Enrollment Screen
+- **Purpose**: Enroll new caregiver into WECARE program and capture baseline configuration for personalization
+- **Elements**:
+  - WECARE logo and "Welcome to WECARE 3.0" header
+  - One-liner explaining app purpose
+  - Language toggle (English / 中文) — sticky across all screens
+  - "Enroll in Program" CTA button
+  - Baseline questions: care recipient status (functional ability levels), caregiver relationship, depression screening (PHQ-9 or similar)(I believe we are doing this before giving the app but im not sure)
+  - Consent + privacy links
+  - Contact information
+
+### 2. Home / Dashboard Screen
+- **Purpose**: Central navigation hub, shows latest message, quick access to daily session
+- **Elements**:
+  - Top banner: "New message from WECARE" notification card with timestamp
+  - Quick-access buttons: "Go to Courses" | "Voice Journal" | "History" | "Contact Us"
+  - Latest WECARE message / daily session preview (clickable card)
+  - Search bar (for history search)
+- **Layout**: Segmented tab bar at bottom: Home | History | Voice Journal | Settings
+
+### 3. Daily Session / Course Page
+- **Purpose**: Deliver daily curriculum content with flexible media consumption
+- **Elements**:
+  - Header: Course title, week number, author, sent timestamp
+  - Media selector tabs: Video | Audio | Text | Case Study
+  - Toggle: "Summary" vs "Full Transcript"
+  - Media player (video/audio) with play controls
+  - Scrollable text content with images
+  - "Additional Resources" section (collapsible list of PDFs, links, infographics)
+  - Bottom interaction bar: Emoji feedback (😊 😐 😢), "Mark as Read", Chat access
+- **Layout**: Top back button + overflow menu (⋯) for options
+
+### 4. Additional Resources (Within Course)
+- **Purpose**: Provide deeper learning materials (links, PDFs, external resources)
+- **Elements**:
+  - Curated external links (NIH, infographics, YouTube tutorials)
+  - Downloadable PDFs, forms, worksheets
+  - Resource category filters (e.g., Diet, Sleep, Stress, Behavior)
+- **Layout**: Expandable list within course page or dedicated modal
+
+### 5. Case Study & Problem-Based Learning Screen
+- **Purpose**: Apply knowledge to realistic scenarios, support problem-specific learning
+- **Elements**:
+  - Short video case scenarios (personalized by care context)
+  - Topic-based problem list: Diet | Sleep | Behavior | Communication | Emotional Support
+  - Click-through to individual problem modules with tailored recommendations
+  - Related course links
+- **Layout**: Sectioned list, click to expand detailed guidance
+
+### 6. Search & History Page
+- **Purpose**: Let users revisit past content, support self-directed study
+- **Elements**:
+  - Search bar with autocomplete (search by title, topic, week, or keyword)
+  - Chronological list of completed and pending sessions
+  - Filter options: Week | Topic | Read/Unread | Content Type (Video, Audio, Text)
+  - Language toggle (Aa for font size) and text zoom controls
+- **Layout**: Top search, main scrollable filtered list, sort options
+
+### 7. Voice Journal (Assessment) Screen
+- **Purpose**: Collect ongoing assessment data and enable weekly personalization
+- **Elements**:
+  - Question prompt (text or audio-narrated, bilingual)
+  - Audio recording interface with timer
+  - Optional quick survey items (emoji stress level, yes/no questions)
+  - Submit button + progress indicator (e.g., "Recording saved — Week 2/7")
+  - Option to listen to past recordings (if permitted by consent)
+- **Layout**: Top prompt, center record controls, bottom submit + progress
+
+### 8. Interactive Feedback & Engagement Bar
+- **Purpose**: Encourage reflection and engagement (persistent component)
+- **Elements**:
+  - Emoji reactions (😊 😐 😢) for quick sentiment
+  - "Share a story" prompt (optional text/voice)
+  - Quick survey or follow-up question
+  - Chat / "Contact Support" button
+- **Layout**: Fixed bottom overlay on course pages, dismissible
+
+### 9. Settings & Preferences Screen
+- **Purpose**: User account and app customization
+- **Elements**:
+  - Language preference (English / 中文)
+  - Notification settings: turn on/off, time of day
+  - Text size / accessibility options
+  - Update profile (name, care recipient info, contact email)
+  - Logout / Delete account
+- **Layout**: Vertical list of settings, toggle switches, dropdown menus
+

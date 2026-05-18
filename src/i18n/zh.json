@@ -1,0 +1,52 @@
+{
+  "enrollment": {
+    "title": "欢迎使用 WECARE 3.0",
+    "subtitle": "每天支持家庭照护者。",
+    "codePlaceholder": "请输入您的参与码...",
+    "cta": "开始 →",
+    "privacy": "继续即表示您同意我们的隐私政策"
+  },
+  "home": {
+    "greeting": "早上好，",
+    "welcomeBack": "欢迎回来",
+    "todaysSession": "今日课程",
+    "startSession": "开始课程",
+    "goToCourses": "查看课程",
+    "goToCoursesSubtitle": "全部7周",
+    "voiceJournal": "语音日记",
+    "voiceJournalSubtitle": "第{{week}}周提示已准备好"
+  },
+  "courses": {
+    "searchPlaceholder": "按课程标题搜索...",
+    "video": "视频",
+    "audio": "音频",
+    "text": "文字"
+  },
+  "session": {
+    "courseList": "课程列表",
+    "additionalResources": "附加资源",
+    "markAsRead": "标记为已读",
+    "tabs": {
+      "video": "视频",
+      "audio": "音频",
+      "text": "文字"
+    }
+  },
+  "settings": {
+    "language": "语言",
+    "contactUs": "联系我们",
+    "deleteMyData": "删除我的数据",
+    "deleteConfirmTitle": "删除您的数据？",
+    "deleteConfirmMessage": "这将永久删除您的帐户和所有数据，无法撤销。",
+    "deleteConfirm": "删除",
+    "cancel": "取消",
+    "languageEnglish": "English",
+    "languageChinese": "中文"
+  },
+  "tabs": {
+    "home": "主页",
+    "courses": "课程",
+    "journal": "日记",
+    "settings": "设置"
+  }
+}

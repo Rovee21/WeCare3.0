@@ -1,0 +1,52 @@
+{
+  "enrollment": {
+    "title": "Welcome to WECARE 3.0",
+    "subtitle": "Supporting family caregivers, one day at a time.",
+    "codePlaceholder": "Enter your code...",
+    "cta": "Get Started →",
+    "privacy": "By continuing you agree to our Privacy Policy"
+  },
+  "home": {
+    "greeting": "Good morning,",
+    "welcomeBack": "Welcome back",
+    "todaysSession": "Today's session",
+    "startSession": "Start session",
+    "goToCourses": "Go to Courses",
+    "goToCoursesSubtitle": "All 7 weeks",
+    "voiceJournal": "Voice Journal",
+    "voiceJournalSubtitle": "Week {{week}} prompt ready"
+  },
+  "courses": {
+    "searchPlaceholder": "Search by session title...",
+    "video": "Video",
+    "audio": "Audio",
+    "text": "Text"
+  },
+  "session": {
+    "courseList": "Course list",
+    "additionalResources": "Additional resources",
+    "markAsRead": "Mark as read",
+    "tabs": {
+      "video": "Video",
+      "audio": "Audio",
+      "text": "Text"
+    }
+  },
+  "settings": {
+    "language": "Language",
+    "contactUs": "Contact us",
+    "deleteMyData": "Delete my data",
+    "deleteConfirmTitle": "Delete your data?",
+    "deleteConfirmMessage": "This will permanently remove your account and all data. This cannot be undone.",
+    "deleteConfirm": "Delete",
+    "cancel": "Cancel",
+    "languageEnglish": "English",
+    "languageChinese": "中文"
+  },
+  "tabs": {
+    "home": "Home",
+    "courses": "Courses",
+    "journal": "Journal",
+    "settings": "Settings"
+  }
+}

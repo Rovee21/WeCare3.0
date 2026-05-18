@@ -1,105 +1,93 @@
 # WECARE 3.0: Evidence-Based Caregiver Intervention App
 
 ## Overview
-WECARE 3.0 is a bilingual, mobile-first, evidence-based caregiver intervention app designed to deliver personalized, multi-modal content to family caregivers. The app delivers a structured 7-week curriculum (6 days/week) with automated, rule-based personalization informed by care recipient functional status, caregiver relationship, baseline depression levels, and weekly Voice Journal assessments. Built in partnership with researchers and clinical teams, it supports embedded voice journaling for ongoing assessment, interactive learning with case studies, and robust admin controls for cohort-based, rule-driven content delivery.
+WECARE 3.0 is a bilingual (English + Mandarin), mobile-first, evidence-based caregiver intervention app for Chinese-American family caregivers. Participants are enrolled via an offline survey; the research team enters survey data into the admin console and emails each participant a one-time access code. The app delivers a structured 7-week curriculum (6 days/week) with daily sessions and a recurring Voice Journal for participant feedback. Content personalization is rule-based, driven by caregiver profile data collected in the survey.
 
 ## Tech Stack
-- **Frontend**: React Native (iOS/Android), React Navigation  
-- **UI/UX**: NativeBase or React Native Paper (bilingual-first design)  
-- **Backend**: FastAPI (Python)  
-- **Database**: AWS (PostgreSQL via RDS or DynamoDB for real-time data)  
-- **Authentication**: AWS Cognito or Firebase Auth  
-- **Voice Journal Integration**: Custom integration with existing TestFlight app + API for data sync  
-- **Notifications**: Firebase Cloud Messaging (FCM) + AWS SNS  
-- **Admin Web Console**: Not sure  
-- **Analytics & Logging**: Not sure
+
+- **Frontend**: React Native (iOS/Android), Expo Managed Workflow, EAS Build for App Store / Play Store submission
+- **Navigation**: React Navigation
+- **UI/UX**: React Native Paper (bilingual-first design)
+- **Backend**: Django REST Framework (Python)
+- **Database**: AWS RDS (PostgreSQL) via Django ORM
+- **Authentication**: AWS Cognito (user pools with custom attributes: cohort, enrollment_week, caregiver_relationship, patient_status, stress_level)
+- **Auth Flow**: One-time participant code validated against DB → Cognito user created → permanent session in device SecureStore (no re-login)
+- **Voice Journal Integration**: VJ recording module merged directly into WECARE codebase (no separate app or API dependency)
+- **Push Notifications**: Firebase Cloud Messaging (FCM) + AWS SNS (daily session reminder at 12pm; 24hr unread reminder; Voice Journal reminder)
+- **Transcription**: AWS Transcribe (async, server-side, post-upload — no on-device processing)
+- **File Storage**: AWS S3 (audio recordings, curriculum media, PDFs)
+- **Admin Console**: Django Admin (web-only, browser-based — no mobile admin in v1)
+- **Analytics & Logging**: Basic engagement event tracking in v1 (watch time, replay count, emoji reactions); advanced analytics deferred to v2
+
 
 ## App Flow
 
-### 1. Onboarding & Enrollment Screen
-- **Purpose**: Enroll new caregiver into WECARE program and capture baseline configuration for personalization
+### Pre-App: Research Team Setup (Django Admin)
+1. Participant fills out an offline survey (language preference, caregiver relationship, care recipient status, etc.)
+2. Research team enters survey data into Django Admin: participant name, language (EN or ZH), caregiver relationship, care recipient functional status, cohort assignment
+3. Django Admin generates a one-time enrollment code and emails it to the participant
+4. Participant receives the email with their code before downloading the app
+
+### 1. Enrollment Screen (one-time, never repeated)
+- **Purpose**: Authenticate the participant using their emailed one-time code
 - **Elements**:
-  - WECARE logo and "Welcome to WECARE 3.0" header
-  - One-liner explaining app purpose
-  - Language toggle (English / 中文) — sticky across all screens
-  - "Enroll in Program" CTA button
-  - Baseline questions: care recipient status (functional ability levels), caregiver relationship, depression screening (PHQ-9 or similar)(I believe we are doing this before giving the app but im not sure)
-  - Consent + privacy links
-  - Contact information
+  - WECARE logo and welcome header
+  - Participant code entry field
+  - "Enroll" CTA button
+- **Behavior**: App sends code to backend → validates against DB → retrieves participant's language from survey data → sets app language automatically → creates Cognito session → stores permanent token in SecureStore
+- **Note**: Language is not chosen in-app — it is set from the participant's survey response. No baseline questions are collected in-app.
 
 ### 2. Home / Dashboard Screen
-- **Purpose**: Central navigation hub, shows latest message, quick access to daily session
+- **Purpose**: Central hub with card-based navigation to all core features
 - **Elements**:
-  - Top banner: "New message from WECARE" notification card with timestamp
-  - Quick-access buttons: "Go to Courses" | "Voice Journal" | "History" | "Contact Us"
-  - Latest WECARE message / daily session preview (clickable card)
-  - Search bar (for history search)
-- **Layout**: Segmented tab bar at bottom: Home | History | Voice Journal | Settings
+  - Card: **Daily Session** — opens today's required course
+  - Card: **Voice Journal** — opens recording screen
+  - Card: **History** — opens full session list
+  - Card: **Settings** — opens settings screen
+- **Layout**: Card grid; bottom tab bar: Home | History | Voice Journal | Settings
 
-### 3. Daily Session / Course Page
-- **Purpose**: Deliver daily curriculum content with flexible media consumption
+### 3. Daily Session Screen
+- **Purpose**: Deliver daily multimedia curriculum content
 - **Elements**:
-  - Header: Course title, week number, author, sent timestamp
-  - Media selector tabs: Video | Audio | Text | Case Study
-  - Toggle: "Summary" vs "Full Transcript"
-  - Media player (video/audio) with play controls
-  - Scrollable text content with images
-  - "Additional Resources" section (collapsible list of PDFs, links, infographics)
-  - Bottom interaction bar: Emoji feedback (😊 😐 😢), "Mark as Read", Chat access
-- **Layout**: Top back button + overflow menu (⋯) for options
+  - Course title, week number, and timestamp
+  - Multimedia content area with images and text
+  - Media tabs: Video | Audio | Text
+  - "Additional Resources" section (collapsible: PDFs, links)
+  - Emoji feedback bar
+- **Tracking**: Watch time and replay count logged per session
 
-### 4. Additional Resources (Within Course)
-- **Purpose**: Provide deeper learning materials (links, PDFs, external resources)
+### 4. Voice Journal Screen
+- **Purpose**: Collect daily/weekly participant input about the program and their caregiving experience
 - **Elements**:
-  - Curated external links (NIH, infographics, YouTube tutorials)
-  - Downloadable PDFs, forms, worksheets
-  - Resource category filters (e.g., Diet, Sleep, Stress, Behavior)
-- **Layout**: Expandable list within course page or dedicated modal
-
-### 5. Case Study & Problem-Based Learning Screen
-- **Purpose**: Apply knowledge to realistic scenarios, support problem-specific learning
-- **Elements**:
-  - Short video case scenarios (personalized by care context)
-  - Topic-based problem list: Diet | Sleep | Behavior | Communication | Emotional Support
-  - Click-through to individual problem modules with tailored recommendations
-  - Related course links
-- **Layout**: Sectioned list, click to expand detailed guidance
-
-### 6. Search & History Page
-- **Purpose**: Let users revisit past content, support self-directed study
-- **Elements**:
-  - Search bar with autocomplete (search by title, topic, week, or keyword)
-  - Chronological list of completed and pending sessions
-  - Filter options: Week | Topic | Read/Unread | Content Type (Video, Audio, Text)
-  - Language toggle (Aa for font size) and text zoom controls
-- **Layout**: Top search, main scrollable filtered list, sort options
-
-### 7. Voice Journal (Assessment) Screen
-- **Purpose**: Collect ongoing assessment data and enable weekly personalization
-- **Elements**:
-  - Question prompt (text or audio-narrated, bilingual)
+  - Bilingual prompt (EN + ZH)
   - Audio recording interface with timer
-  - Optional quick survey items (emoji stress level, yes/no questions)
-  - Submit button + progress indicator (e.g., "Recording saved — Week 2/7")
-  - Option to listen to past recordings (if permitted by consent)
-- **Layout**: Top prompt, center record controls, bottom submit + progress
+  - Submit button + progress indicator (e.g., "Week 2/7")
+- **Backend**: Audio uploaded to S3 → AWS Transcribe async pipeline → transcript stored in DB
 
-### 8. Interactive Feedback & Engagement Bar
-- **Purpose**: Encourage reflection and engagement (persistent component)
+### 5. History Screen
+- **Purpose**: Let participants browse and replay all available sessions
 - **Elements**:
-  - Emoji reactions (😊 😐 😢) for quick sentiment
-  - "Share a story" prompt (optional text/voice)
-  - Quick survey or follow-up question
-  - Chat / "Contact Support" button
-- **Layout**: Fixed bottom overlay on course pages, dismissible
+  - Full list of all sessions
+  - Search bar — search by session title
+  - Read/unread state indicator per session
+- **Layout**: Top search bar, scrollable session list below
 
-### 9. Settings & Preferences Screen
-- **Purpose**: User account and app customization
+### 6. Settings Screen
+- **Purpose**: Account management
 - **Elements**:
-  - Language preference (English / 中文)
-  - Notification settings: turn on/off, time of day
-  - Text size / accessibility options
-  - Update profile (name, care recipient info, contact email)
-  - Logout / Delete account
-- **Layout**: Vertical list of settings, toggle switches, dropdown menus
+  - Contact us
+  - Delete my data
+- **Note**: Language is not changeable in-app — it is set from the participant's survey response and retrieved from the admin console on enrollment.
 
+### 7. Admin Console (Django Admin)
+- **Purpose**: Research team interface — participant setup, cohort management, notifications
+- **Elements**:
+  - Enter survey data per participant (name, language, caregiver relationship, care recipient status, cohort)
+  - Generate enrollment codes and trigger email delivery to participants
+  - Cohort assignment: Treatment / Control / Waitlist
+  - Notification scheduler and sending records log
+- **Access**: Web-only (browser-based, no mobile admin)
+
+### Push Notifications
+- **Daily at 12pm**: "Your daily WeCare session is ready"
+- **Voice Journal reminder**: Sent on scheduled VJ days

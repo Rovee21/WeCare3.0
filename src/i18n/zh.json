@@ -32,6 +32,12 @@
       "text": "文字"
     }
   },
+  "contactUs": {
+    "title": "联系我们",
+    "intro": "如有疑问或需要支持，请联系WECARE研究团队。",
+    "emailLabel": "电子邮件",
+    "phoneLabel": "电话"
+  },
   "settings": {
     "language": "语言",
     "contactUs": "联系我们",

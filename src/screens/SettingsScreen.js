@@ -46,7 +46,7 @@ export default function SettingsScreen({ navigation }) {
       </View>
 
       <View style={styles.section}>
-        <TouchableOpacity style={[styles.row, styles.rowLast]}>
+        <TouchableOpacity style={[styles.row, styles.rowLast]} onPress={() => navigation.navigate('ContactUs')}>
           <Text style={styles.rowLabel}>{t('settings.contactUs')}</Text>
           <Text style={styles.rowArrow}>›</Text>
         </TouchableOpacity>

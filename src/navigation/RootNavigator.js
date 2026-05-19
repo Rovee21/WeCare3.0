@@ -9,12 +9,14 @@ import HomeScreen from '../screens/HomeScreen';
 import CoursesScreen from '../screens/CoursesScreen';
 import DailySessionScreen from '../screens/DailySessionScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import ContactUsScreen from '../screens/ContactUsScreen';
 import JournalPlaceholderScreen from '../screens/JournalPlaceholderScreen';
 import { Colors } from '../constants/colors';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 const CoursesStack = createNativeStackNavigator();
+const SettingsStack = createNativeStackNavigator();
 
 function CoursesNavigator() {
   return (
@@ -22,6 +24,15 @@ function CoursesNavigator() {
       <CoursesStack.Screen name="CoursesList" component={CoursesScreen} />
       <CoursesStack.Screen name="DailySession" component={DailySessionScreen} />
     </CoursesStack.Navigator>
+  );
+}
+
+function SettingsNavigator() {
+  return (
+    <SettingsStack.Navigator screenOptions={{ headerShown: false }}>
+      <SettingsStack.Screen name="SettingsMain" component={SettingsScreen} />
+      <SettingsStack.Screen name="ContactUs" component={ContactUsScreen} />
+    </SettingsStack.Navigator>
   );
 }
 
@@ -53,7 +64,7 @@ function MainTabs() {
       />
       <Tab.Screen
         name="Settings"
-        component={SettingsScreen}
+        component={SettingsNavigator}
         options={{ tabBarLabel: t('tabs.settings'), tabBarIcon: ({ color }) => <Text style={{ fontSize: 18, color }}>⚙️</Text> }}
       />
     </Tab.Navigator>

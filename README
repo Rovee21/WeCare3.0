@@ -1,7 +1,7 @@
 # WECARE 3.0: Evidence-Based Caregiver Intervention App
 
 ## Overview
-WECARE 3.0 is a bilingual (English + Mandarin), mobile-first, evidence-based caregiver intervention app for Chinese-American family caregivers. Participants are enrolled via an offline survey; the research team enters survey data into the admin console and emails each participant a one-time access code. The app delivers a structured 7-week curriculum (6 days/week) with daily sessions and a recurring Voice Journal for participant feedback. Content personalization is rule-based, driven by caregiver profile data collected in the survey.
+WECARE 3.0 is a bilingual (English + Mandarin), mobile-first, evidence-based caregiver intervention app for Chinese-American family caregivers. Participants are enrolled via an offline survey; the research team enters survey data into the admin console and emails each participant a one-time access code. The app delivers a structured 7-week curriculum (6 days/week) with daily sessions and a weekly Voice Journal for participant feedback. Content personalization is rule-based, driven by a 3-layer cohort system based on caregiver profile data collected in the survey.
 
 ## Tech Stack
 
@@ -20,11 +20,31 @@ WECARE 3.0 is a bilingual (English + Mandarin), mobile-first, evidence-based car
 - **Analytics & Logging**: Basic engagement event tracking in v1 (watch time, replay count, emoji reactions); advanced analytics deferred to v2
 
 
+## Cohort System (3-Layer)
+
+Participants are assigned to three independent cohort dimensions at enrollment, based on their baseline survey:
+
+| Layer | Field | Values | Basis |
+|---|---|---|---|
+| Layer 1 | `group1` | Intervention / Non-intervention | Treatment vs. control arm |
+| Layer 2 | `group2` | Mild / Moderate / Severe | Care recipient functional status from baseline survey |
+| Layer 3 | `group3` | High stress / Low stress | Baseline PHQ-9 / stress score; updated by weekly VJ responses |
+
+These three values drive all content routing and personalization logic in the app.
+
+
+## Survey & Research Protocol
+
+- **Baseline survey**: Collected offline before enrollment. Captures caregiver relationship, language preference, care recipient functional status (mild/moderate/severe), and baseline stress/depression level (PHQ-9 or equivalent).
+- **Follow-up surveys**: Administered at 3 months, 6 months, and 12 months post-enrollment.
+- Research team enters baseline survey data into Django Admin before generating the participant's enrollment code.
+
+
 ## App Flow
 
 ### Pre-App: Research Team Setup (Django Admin)
-1. Participant fills out an offline survey (language preference, caregiver relationship, care recipient status, etc.)
-2. Research team enters survey data into Django Admin: participant name, language (EN or ZH), caregiver relationship, care recipient functional status, cohort assignment
+1. Participant fills out an offline baseline survey (language preference, caregiver relationship, care recipient functional status, stress/depression level)
+2. Research team enters survey data into Django Admin: participant name, language (EN or ZH), caregiver relationship, care recipient functional status, cohort assignment (all 3 layers)
 3. Django Admin generates a one-time enrollment code and emails it to the participant
 4. Participant receives the email with their code before downloading the app
 
@@ -34,60 +54,60 @@ WECARE 3.0 is a bilingual (English + Mandarin), mobile-first, evidence-based car
   - WECARE logo and welcome header
   - Participant code entry field
   - "Enroll" CTA button
-- **Behavior**: App sends code to backend → validates against DB → retrieves participant's language from survey data → sets app language automatically → creates Cognito session → stores permanent token in SecureStore
+- **Behavior**: App sends code to backend → validates against DB → retrieves participant's language and cohort profile from survey data → sets app language automatically → creates Cognito session → stores permanent token in SecureStore
 - **Note**: Language is not chosen in-app — it is set from the participant's survey response. No baseline questions are collected in-app.
 
 ### 2. Home / Dashboard Screen
 - **Purpose**: Central hub with card-based navigation to all core features
 - **Elements**:
-  - Card: **Daily Session** — opens today's required course
-  - Card: **Voice Journal** — opens recording screen
-  - Card: **History** — opens full session list
-  - Card: **Settings** — opens settings screen
-- **Layout**: Card grid; bottom tab bar: Home | History | Voice Journal | Settings
+  - Today's session card (dark): week/day label, course title, "Start session" button
+  - Two action cards: "Go to Courses" (all 7 weeks) | "Voice Journal" (weekly prompt)
+- **Layout**: Card grid; bottom tab bar: Home | Courses | Journal | Settings
 
 ### 3. Daily Session Screen
 - **Purpose**: Deliver daily multimedia curriculum content
 - **Elements**:
   - Course title, week number, and timestamp
-  - Multimedia content area with images and text
   - Media tabs: Video | Audio | Text
-  - "Additional Resources" section (collapsible: PDFs, links)
+  - "Additional Resources" section (PDFs, links)
   - Emoji feedback bar
 - **Tracking**: Watch time and replay count logged per session
 
 ### 4. Voice Journal Screen
-- **Purpose**: Collect daily/weekly participant input about the program and their caregiving experience
+- **Purpose**: Collect weekly participant input about the program and their caregiving experience
+- **Cadence**: Minimum one VJ submission per week (not daily)
 - **Elements**:
-  - Bilingual prompt (EN + ZH)
+  - Bilingual prompt (EN + ZH shown together)
   - Audio recording interface with timer
   - Submit button + progress indicator (e.g., "Week 2/7")
 - **Backend**: Audio uploaded to S3 → AWS Transcribe async pipeline → transcript stored in DB
+- **Personalization**: VJ stress level (`vj_stress_level`) can trigger content variant adjustments for the following week
 
-### 5. History Screen
+### 5. Courses (History) Screen
 - **Purpose**: Let participants browse and replay all available sessions
 - **Elements**:
-  - Full list of all sessions
-  - Search bar — search by session title
+  - Full list of all sessions grouped by week
+  - Search bar — search by session title only
   - Read/unread state indicator per session
-- **Layout**: Top search bar, scrollable session list below
+- **Layout**: Top search bar, scrollable grouped session list below
 
 ### 6. Settings Screen
 - **Purpose**: Account management
 - **Elements**:
-  - Contact us
-  - Delete my data
+  - Participant profile header (ID, week, cohort)
+  - Contact us → wecaremason@gmail.com
+  - Delete my data (destructive, with confirmation)
 - **Note**: Language is not changeable in-app — it is set from the participant's survey response and retrieved from the admin console on enrollment.
 
 ### 7. Admin Console (Django Admin)
 - **Purpose**: Research team interface — participant setup, cohort management, notifications
 - **Elements**:
-  - Enter survey data per participant (name, language, caregiver relationship, care recipient status, cohort)
+  - Enter baseline survey data per participant (name, language, caregiver relationship, care recipient functional status, cohort assignment across all 3 layers)
   - Generate enrollment codes and trigger email delivery to participants
-  - Cohort assignment: Treatment / Control / Waitlist
   - Notification scheduler and sending records log
 - **Access**: Web-only (browser-based, no mobile admin)
 
 ### Push Notifications
 - **Daily at 12pm**: "Your daily WeCare session is ready"
-- **Voice Journal reminder**: Sent on scheduled VJ days
+- **24hr unread reminder**: Sent if participant has not opened today's session
+- **Voice Journal reminder**: Sent on scheduled VJ weeks

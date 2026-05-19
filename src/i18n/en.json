@@ -32,6 +32,12 @@
       "text": "Text"
     }
   },
+  "contactUs": {
+    "title": "Contact Us",
+    "intro": "Have questions or need support? Reach out to the WECARE research team.",
+    "emailLabel": "Email",
+    "phoneLabel": "Phone"
+  },
   "settings": {
     "language": "Language",
     "contactUs": "Contact us",

@@ -40,7 +40,7 @@ export default function HomeScreen({ navigation }) {
             })}
           >
             <Text style={styles.sessionLabel}>
-              {t('home.todaysSession')} · Week {todaysSession.weekNumber}, Day 3
+              {t('home.todaysSession')} · Week {todaysSession.week_number}, Day {todaysSession.day_number}
             </Text>
             <Text style={styles.sessionTitle}>{todaysSession.title}</Text>
             <View style={styles.startButton}>

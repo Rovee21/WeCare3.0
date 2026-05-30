@@ -1,22 +1,25 @@
 import * as SecureStore from 'expo-secure-store';
+import i18n from '../i18n/i18n';
+import { apiFetch } from './api';
 
 const TOKEN_KEY = 'wecare_session_token';
-const USER_KEY = 'wecare_user_profile';
+const PROFILE_KEY = 'wecare_user_profile';
 
-// Stub: replace with real API call when backend is ready
 export async function enrollWithCode(code) {
-  // TODO: POST /api/enroll { code }
-  // Returns: { token, language, participantId, weekNumber, group }
-  const mockResponse = {
-    token: 'mock-token-' + code,
-    language: 'en',
-    participantId: '00142',
-    weekNumber: 2,
-    group: 'Treatment',
-  };
-  await SecureStore.setItemAsync(TOKEN_KEY, mockResponse.token);
-  await SecureStore.setItemAsync(USER_KEY, JSON.stringify(mockResponse));
-  return mockResponse;
+  const data = await apiFetch('/api/enroll/', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
+
+  await SecureStore.setItemAsync(TOKEN_KEY, data.token);
+  await SecureStore.setItemAsync(PROFILE_KEY, JSON.stringify(data));
+
+  // Set app language from the participant's survey data
+  if (data.language && i18n.language !== data.language) {
+    await i18n.changeLanguage(data.language);
+  }
+
+  return data;
 }
 
 export async function getStoredToken() {
@@ -24,16 +27,16 @@ export async function getStoredToken() {
 }
 
 export async function getStoredProfile() {
-  const raw = await SecureStore.getItemAsync(USER_KEY);
+  const raw = await SecureStore.getItemAsync(PROFILE_KEY);
   return raw ? JSON.parse(raw) : null;
 }
 
 export async function logout() {
   await SecureStore.deleteItemAsync(TOKEN_KEY);
-  await SecureStore.deleteItemAsync(USER_KEY);
+  await SecureStore.deleteItemAsync(PROFILE_KEY);
 }
 
 export async function deleteAccount() {
-  // TODO: DELETE /api/account
+  await apiFetch('/api/account/', { method: 'DELETE' });
   await logout();
 }

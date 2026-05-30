@@ -1,21 +1,19 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { logEngagement } from '../services/sessionService';
+import { logEngagement, markAsRead } from '../services/sessionService';
 import { Colors } from '../constants/colors';
-
-const MOCK_RESOURCES = [
-  { id: 'r1', title: "Uncle Chen's diet", type: 'Video' },
-  { id: 'r2', title: 'Dementia patient diet', type: 'Video' },
-  { id: 'r3', title: 'What to eat today?', type: 'Video' },
-  { id: 'r4', title: 'Sleeping problems', type: 'Article' },
-];
 
 export default function DailySessionScreen({ route, navigation }) {
   const { t } = useTranslation();
   const { course } = route.params;
   const [activeTab, setActiveTab] = useState('Video');
+
+  useEffect(() => {
+    // Mark as read when the screen is opened
+    if (course?.id) markAsRead(course.id).catch(() => {});
+  }, [course?.id]);
 
   const tabs = [
     t('session.tabs.video'),
@@ -86,27 +84,30 @@ export default function DailySessionScreen({ route, navigation }) {
           {activeTab === 'Text' && (
             <View style={styles.textContent}>
               <Text style={styles.textBody}>
-                ADRD (Alzheimer's Disease Related Dementias) affects memory, thinking, and behavior.
-                As a caregiver, understanding the stages and symptoms helps you provide better support.
+                {course?.text_content || course?.textContent || ''}
               </Text>
             </View>
           )}
         </View>
 
-        <Text style={styles.sectionLabel}>{t('session.additionalResources')}</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.resourcesRow}>
-          {MOCK_RESOURCES.map(r => (
-            <TouchableOpacity
-              key={r.id}
-              style={styles.resourceCard}
-              onPress={() => logEngagement({ infographic_open_count: 1, course_title: course.title })}
-            >
-              <View style={styles.resourceThumb} />
-              <Text style={styles.resourceTitle}>{r.title}</Text>
-              <Text style={styles.resourceType}>{r.type}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        {course?.resources?.length > 0 && (
+          <>
+            <Text style={styles.sectionLabel}>{t('session.additionalResources')}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.resourcesRow}>
+              {course.resources.map(r => (
+                <TouchableOpacity
+                  key={r.id}
+                  style={styles.resourceCard}
+                  onPress={() => logEngagement({ infographic_open_count: 1, course_title: course.title })}
+                >
+                  <View style={styles.resourceThumb} />
+                  <Text style={styles.resourceTitle}>{r.title}</Text>
+                  <Text style={styles.resourceType}>{r.resource_type}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </>
+        )}
       </ScrollView>
 
       <View style={styles.bottomBar}>

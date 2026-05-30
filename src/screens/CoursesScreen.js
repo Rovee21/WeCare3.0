@@ -8,8 +8,9 @@ import { Colors } from '../constants/colors';
 function groupByWeek(sessions) {
   const map = {};
   for (const s of sessions) {
-    if (!map[s.weekLabel]) map[s.weekLabel] = [];
-    map[s.weekLabel].push(s);
+    const key = s.week_label || s.weekLabel || `WEEK ${s.week_number}`;
+    if (!map[key]) map[key] = [];
+    map[key].push(s);
   }
   return Object.entries(map).map(([title, data]) => ({ title, data }));
 }
@@ -34,11 +35,11 @@ export default function CoursesScreen({ navigation }) {
         style={styles.courseRow}
         onPress={() => navigation.navigate('DailySession', { course: item })}
       >
-        <View style={[styles.readIndicator, item.isRead && styles.readIndicatorFilled]} />
+        <View style={[styles.readIndicator, (item.is_read || item.isRead) && styles.readIndicatorFilled]} />
         <View style={styles.courseInfo}>
           <Text style={styles.courseTitle}>{item.title}</Text>
           <Text style={styles.courseMeta}>
-            {[item.date, item.mediaTypes?.join(' · ')].filter(Boolean).join(' · ')}
+            {[(item.media_types || item.mediaTypes)?.join(' · ')].filter(Boolean).join(' · ')}
           </Text>
         </View>
       </TouchableOpacity>

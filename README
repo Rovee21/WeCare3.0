@@ -20,26 +20,6 @@ WECARE 3.0 is a bilingual (English + Mandarin), mobile-first, evidence-based car
 - **Analytics & Logging**: Basic engagement event tracking in v1 (watch time, replay count, emoji reactions); advanced analytics deferred to v2
 
 
-## Cohort System (3-Layer)
-
-Participants are assigned to three independent cohort dimensions at enrollment, based on their baseline survey:
-
-| Layer | Field | Values | Basis |
-|---|---|---|---|
-| Layer 1 | `group1` | Intervention / Non-intervention | Treatment vs. control arm |
-| Layer 2 | `group2` | Mild / Moderate / Severe | Care recipient functional status from baseline survey |
-| Layer 3 | `group3` | High stress / Low stress | Baseline PHQ-9 / stress score; updated by weekly VJ responses |
-
-These three values drive all content routing and personalization logic in the app.
-
-
-## Survey & Research Protocol
-
-- **Baseline survey**: Collected offline before enrollment. Captures caregiver relationship, language preference, care recipient functional status (mild/moderate/severe), and baseline stress/depression level (PHQ-9 or equivalent).
-- **Follow-up surveys**: Administered at 3 months, 6 months, and 12 months post-enrollment.
-- Research team enters baseline survey data into Django Admin before generating the participant's enrollment code.
-
-
 ## App Flow
 
 ### Pre-App: Research Team Setup (Django Admin)

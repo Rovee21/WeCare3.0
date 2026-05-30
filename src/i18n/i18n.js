@@ -11,6 +11,8 @@ i18n.use(initReactI18next).init({
   lng: 'en',
   fallbackLng: 'en',
   interpolation: { escapeValue: false },
+  // Allow changeLanguage() to be called after enrollment sets language from profile
+  react: { useSuspense: false },
 });
 
 export default i18n;

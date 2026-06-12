@@ -1,9 +1,18 @@
+import types
 from django.contrib import admin
-from django.urls import path, include
+from django.shortcuts import redirect as _redirect
+from django.urls import path, include, reverse as _reverse
 
 admin.site.site_header = "WeCare Research Admin"
 admin.site.site_title = "WeCare Admin"
 admin.site.index_title = "Research Dashboard"
+
+
+def _admin_index(self, request, extra_context=None):
+    return _redirect(_reverse("admin:participants_participant_changelist"))
+
+
+admin.site.index = types.MethodType(_admin_index, admin.site)
 
 urlpatterns = [
     path("admin/", admin.site.urls),

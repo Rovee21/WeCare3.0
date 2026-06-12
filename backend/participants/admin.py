@@ -6,17 +6,11 @@ from .models import Participant
 
 
 class VoiceJournalInline(admin.TabularInline):
-    # Late import to avoid circular dependency at module load
-    @classmethod
-    def _get_model(cls):
-        from journal.models import VoiceJournalEntry
-        return VoiceJournalEntry
-
-    model = None  # set below after class definition
+    model = None  # set below
     extra = 0
     can_delete = False
-    fields = ["week_number", "duration_display", "vj_stress_level", "transcription_status", "submitted_at"]
-    readonly_fields = ["week_number", "duration_display", "vj_stress_level", "transcription_status", "submitted_at"]
+    fields = ["week_number", "duration_display", "vj_stress_level", "emotion_label", "transcription_status", "submitted_at"]
+    readonly_fields = ["week_number", "duration_display", "vj_stress_level", "emotion_label", "transcription_status", "submitted_at"]
     verbose_name = "Voice Journal Submission"
     verbose_name_plural = "Voice Journal Submissions"
     ordering = ["week_number"]
@@ -30,8 +24,49 @@ class VoiceJournalInline(admin.TabularInline):
         return False
 
 
+class EngagementLogInline(admin.TabularInline):
+    model = None  # set in _setup_inlines()
+    extra = 0
+    can_delete = False
+    fields = [
+        "week_number", "course_title",
+        "video_watch_display", "video_open_count",
+        "read_time_display", "read_count",
+        "emoji_taps_display", "logged_at",
+    ]
+    readonly_fields = [
+        "week_number", "course_title",
+        "video_watch_display", "video_open_count",
+        "read_time_display", "read_count",
+        "emoji_taps_display", "logged_at",
+    ]
+    ordering = ["-logged_at"]
+    verbose_name = "Engagement Event"
+    verbose_name_plural = "Engagement Log"
+
+    def video_watch_display(self, obj):
+        if not obj.video_last_time:
+            return "—"
+        m, s = divmod(obj.video_last_time, 60)
+        return f"{m}:{s:02d}"
+    video_watch_display.short_description = "Watch Time"
+
+    def read_time_display(self, obj):
+        if not obj.read_minutes:
+            return "—"
+        return f"{obj.read_minutes:.1f} min"
+    read_time_display.short_description = "Read Time"
+
+    def emoji_taps_display(self, obj):
+        return obj.interactive_feature_count or "—"
+    emoji_taps_display.short_description = "Emoji Taps"
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
 class SessionCompletionInline(admin.TabularInline):
-    model = None  # set below after class definition
+    model = None  # set below
     extra = 0
     can_delete = False
     fields = ["session", "is_read", "read_at"]
@@ -45,9 +80,10 @@ class SessionCompletionInline(admin.TabularInline):
 
 def _setup_inlines():
     from journal.models import VoiceJournalEntry
-    from content.models import ParticipantSession
+    from content.models import ParticipantSession, EngagementLog
     VoiceJournalInline.model = VoiceJournalEntry
     SessionCompletionInline.model = ParticipantSession
+    EngagementLogInline.model = EngagementLog
 
 
 _setup_inlines()
@@ -71,22 +107,38 @@ class ParticipantAdmin(admin.ModelAdmin):
     search_fields = ["label", "email"]
     readonly_fields = [
         "participant_id_display", "is_enrolled", "enrolled_at",
-        "current_week_display", "user", "created_at", "updated_at",
+        "current_week_display", "latest_vj_stress", "latest_emotion_status",
+        "user", "created_at", "updated_at",
     ]
-    inlines = [SessionCompletionInline, VoiceJournalInline]
+    inlines = [EngagementLogInline, SessionCompletionInline, VoiceJournalInline]
     date_hierarchy = "enrolled_at"
     list_per_page = 50
 
     fieldsets = (
         ("Identity", {
-            "fields": ("participant_id_display", "label", "email", "language"),
+            "fields": ("participant_id_display", "label", "email", "language", "is_enrolled"),
         }),
-        ("Cohort Assignment (from baseline survey)", {
-            "fields": ("group1", "group2", "group3", "adrd_relationship_group", "stage"),
+        ("Demographics", {
+            "fields": ("gender", "age"),
+            "description": "From baseline survey.",
+        }),
+        ("Study Progress", {
+            "fields": ("enrolled_at", "current_week_display", "enrollment_week"),
+        }),
+        ("Caregiver Profile", {
+            "fields": ("adrd_relationship_group", "group3"),
+            "description": "Relationship and burden level from baseline survey.",
+        }),
+        ("Cohort Assignment", {
+            "fields": ("group1", "group2", "stage"),
             "description": "Set from offline baseline survey data. Do not change after enrollment.",
         }),
+        ("Clinical Indicators (from Voice Journal)", {
+            "fields": ("latest_vj_stress", "latest_emotion_status"),
+        }),
         ("Enrollment", {
-            "fields": ("enrollment_code", "enrollment_week", "is_enrolled", "enrolled_at", "current_week_display"),
+            "fields": ("enrollment_code",),
+            "classes": ("collapse",),
         }),
         ("System", {
             "fields": ("user", "created_at", "updated_at"),
@@ -116,7 +168,46 @@ class ParticipantAdmin(admin.ModelAdmin):
             '<span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:10px;font-weight:600;">Week {}</span>',
             week,
         )
-    current_week_display.short_description = "Program Week"
+    current_week_display.short_description = "Current Week"
+
+    def latest_vj_stress(self, obj):
+        entry = obj.journal_entries.order_by("-submitted_at").first()
+        if not entry:
+            return format_html('<span style="color:#999;">No submissions yet</span>')
+        if entry.vj_stress_level is None:
+            return format_html('<span style="color:#999;">— awaiting report</span>')
+        level = entry.vj_stress_level
+        if level <= 3:
+            color = "#2e7d32"
+        elif level <= 6:
+            color = "#f57c00"
+        else:
+            color = "#c62828"
+        return format_html(
+            '<span style="color:{};font-weight:600;">{}/10</span> '
+            '<span style="color:#999;font-size:11px;">(Week {})</span>',
+            color, level, entry.week_number,
+        )
+    latest_vj_stress.short_description = "VJ Stress Level"
+
+    def latest_emotion_status(self, obj):
+        entry = obj.journal_entries.exclude(emotion_label="").order_by("-submitted_at").first()
+        if not entry:
+            return format_html('<span style="color:#999;">No data yet</span>')
+        colors = {
+            "calm": "#2e7d32",
+            "neutral": "#555",
+            "anxious": "#f57c00",
+            "sad": "#1565c0",
+            "overwhelmed": "#c62828",
+        }
+        color = colors.get(entry.emotion_label, "#555")
+        return format_html(
+            '<span style="color:{};font-weight:600;">{}</span> '
+            '<span style="color:#999;font-size:11px;">(Week {})</span>',
+            color, entry.get_emotion_label_display(), entry.week_number,
+        )
+    latest_emotion_status.short_description = "Emotion Status"
 
     def sessions_completed(self, obj):
         count = getattr(obj, "_sessions_completed", 0)

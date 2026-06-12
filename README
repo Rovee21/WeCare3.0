@@ -1,93 +1,256 @@
-# WECARE 3.0: Evidence-Based Caregiver Intervention App
+# WECARE 3.0
 
-## Overview
-WECARE 3.0 is a bilingual (English + Mandarin), mobile-first, evidence-based caregiver intervention app for Chinese-American family caregivers. Participants are enrolled via an offline survey; the research team enters survey data into the admin console and emails each participant a one-time access code. The app delivers a structured 7-week curriculum (6 days/week) with daily sessions and a weekly Voice Journal for participant feedback. Content personalization is rule-based, driven by a 3-layer cohort system based on caregiver profile data collected in the survey.
+A bilingual (English + Mandarin) mobile app delivering a structured 7-week caregiving curriculum to Chinese-American family caregivers. Built with React Native (frontend) and Django REST Framework (backend).
+
+---
+
+## Table of Contents
+
+1. [Project Structure](#project-structure)
+2. [Prerequisites](#prerequisites)
+3. [Running the Mobile App](#running-the-mobile-app)
+4. [Running the Backend](#running-the-backend)
+5. [Environment Variables](#environment-variables)
+6. [Key Commands](#key-commands)
+7. [Tech Stack](#tech-stack)
+8. [App Overview](#app-overview)
+
+---
+
+## Project Structure
+
+```
+WeCare3.0/
+  App.js                        # Entry point
+  app.json                      # Expo config
+  babel.config.js
+  package.json
+  src/
+    screens/                    # One file per screen
+    navigation/                 # RootNavigator (stack + bottom tabs)
+    services/                   # All API calls (authService, sessionService, userService)
+    i18n/                       # Translations (en.json, zh.json)
+    constants/                  # Colors, theme
+  backend/
+    manage.py
+    docker-compose.yml          # Runs Postgres + Django together
+    Dockerfile
+    requirements.txt
+    .env.example                # Copy this to .env and fill in values
+    participants/               # Enrollment, auth, participant model
+    content/                    # Sessions, engagement logs, notifications
+    journal/                    # Voice journal entries
+    wecare/
+      settings/
+        base.py                 # Shared settings
+        local.py                # Local dev overrides
+        production.py           # Production overrides
+```
+
+---
+
+## Prerequisites
+
+Make sure you have these installed before starting:
+
+- **Node.js** 18+ — `node --version`
+- **Expo Go** app on your phone (iOS or Android) — download from the App Store / Play Store
+- **Docker Desktop** — required to run the backend locally
+- **Python 3.11+** — only needed if you want to run Django outside Docker
+
+---
+
+## Running the Mobile App
+
+The mobile app runs entirely independently of the backend — it uses mock data until the backend is connected.
+
+**Step 1 — Install dependencies**
+
+From the project root:
+```bash
+npm install
+```
+
+**Step 2 — Start the dev server**
+```bash
+npx expo start --clear
+```
+
+**Step 3 — Open on your phone**
+
+Scan the QR code with the Expo Go app. Make sure your phone and computer are on the same Wi-Fi network.
+
+**What you should see:**
+- Enrollment screen on first launch (no token stored yet)
+- Enter any code → navigates to the home screen (mock auth)
+- Bottom tab bar: Home | Courses | Journal | Settings
+- All text switches between English and Mandarin based on participant language (currently hardcoded to English in the mock)
+
+---
+
+## Running the Backend
+
+The backend uses Docker Compose, which starts both Postgres and Django with a single command. You do not need to install Python or Postgres separately.
+
+**Step 1 — Copy the environment file**
+```bash
+cd backend
+cp .env.example .env
+```
+
+Open `.env` and set `SECRET_KEY` to any long random string for local dev. Leave AWS fields blank — they are only needed for S3 and Transcribe.
+
+**Step 2 — Start the services**
+```bash
+docker-compose up
+```
+
+This starts:
+- `db` — Postgres on port 5432
+- `web` — Django on port 8000
+
+On first run, Docker builds the image and pulls Postgres. Subsequent starts are fast.
+
+**Step 3 — Run migrations** (first time only, in a separate terminal)
+```bash
+docker-compose exec web python manage.py migrate
+```
+
+**Step 4 — Create an admin account** (first time only)
+```bash
+docker-compose exec web python manage.py createsuperuser
+```
+
+**Step 5 — Open Django Admin**
+
+Go to `http://localhost:8000/admin` and log in with the superuser credentials you just created.
+
+From Django Admin you can:
+- Add participants (name, email, language, cohort assignment)
+- Generate enrollment codes
+- Add curriculum sessions (content for each week/day)
+- View engagement logs and notification records
+
+**Step 6 — Test the enrollment API**
+
+```bash
+curl -X POST http://localhost:8000/api/enroll/ \
+  -H "Content-Type: application/json" \
+  -d '{"code": "YOUR_CODE_HERE"}'
+```
+
+A successful response returns a token, language, participant ID, and cohort data.
+
+---
+
+## Environment Variables
+
+### Mobile app
+
+The mobile app has no `.env` file yet — the API base URL is set in `src/services/`. When connecting to the real backend, update `API_BASE_URL` there.
+
+### Backend (`backend/.env`)
+
+Copy from `backend/.env.example`. Required fields:
+
+| Variable | Description |
+|---|---|
+| `SECRET_KEY` | Django secret key — any long random string for local dev |
+| `DEBUG` | `True` for local dev, `False` in production |
+| `DATABASE_URL` | Postgres connection string — pre-filled for Docker |
+| `ALLOWED_HOSTS` | `*` for local dev |
+| `CORS_ALLOW_ALL_ORIGINS` | `True` for local dev |
+| `AWS_ACCESS_KEY_ID` | Leave blank for local dev |
+| `AWS_SECRET_ACCESS_KEY` | Leave blank for local dev |
+| `AWS_S3_BUCKET` | S3 bucket name for curriculum media |
+| `AWS_TRANSCRIBE_OUTPUT_BUCKET` | S3 bucket for VJ transcripts |
+| `EMAIL_HOST_PASSWORD` | Gmail app password for sending enrollment codes |
+
+
+---
+
+## Key Commands
+
+### Mobile
+```bash
+npm install              # Install dependencies
+npx expo start --clear   # Start dev server (clears cache)
+npx expo start --ios     # iOS simulator only
+npx expo start --android # Android emulator only
+```
+
+### Backend
+```bash
+docker-compose up                                          # Start everything
+docker-compose up -d                                       # Start in background
+docker-compose down                                        # Stop everything
+docker-compose exec web python manage.py migrate           # Run migrations
+docker-compose exec web python manage.py makemigrations    # Create new migrations
+docker-compose exec web python manage.py createsuperuser   # Create admin account
+docker-compose exec web python manage.py shell             # Django shell
+docker-compose logs web                                    # View Django logs
+```
+
+---
 
 ## Tech Stack
 
-- **Frontend**: React Native (iOS/Android), Expo Managed Workflow, EAS Build for App Store / Play Store submission
-- **Navigation**: React Navigation
-- **UI/UX**: React Native Paper (bilingual-first design)
-- **Backend**: Django REST Framework (Python)
-- **Database**: AWS RDS (PostgreSQL) via Django ORM
-- **Authentication**: AWS Cognito (user pools with custom attributes: cohort, enrollment_week, caregiver_relationship, patient_status, stress_level)
-- **Auth Flow**: One-time participant code validated against DB → Cognito user created → permanent session in device SecureStore (no re-login)
-- **Voice Journal Integration**: VJ recording module merged directly into WECARE codebase (no separate app or API dependency)
-- **Push Notifications**: Firebase Cloud Messaging (FCM) + AWS SNS (daily session reminder at 12pm; 24hr unread reminder; Voice Journal reminder)
-- **Transcription**: AWS Transcribe (async, server-side, post-upload — no on-device processing)
-- **File Storage**: AWS S3 (audio recordings, curriculum media, PDFs)
-- **Admin Console**: Django Admin (web-only, browser-based — no mobile admin in v1)
-- **Analytics & Logging**: Basic engagement event tracking in v1 (watch time, replay count, emoji reactions); advanced analytics deferred to v2
+| Layer | Technology |
+|---|---|
+| Mobile | React Native, Expo SDK 54, Expo Go for dev |
+| Navigation | React Navigation v7 (stack + bottom tabs) |
+| Internationalization | react-i18next (English + Mandarin) |
+| Backend | Django 4.2, Django REST Framework |
+| Database | PostgreSQL (local via Docker, production via AWS RDS) |
+| Auth | DRF token auth (one-time enrollment code → permanent token) |
+| Storage | AWS S3 (curriculum media, VJ audio recordings) |
+| Transcription | AWS Transcribe (async, server-side) |
+| Push Notifications | Firebase Cloud Messaging + AWS SNS |
+| Admin Console | Django Admin |
 
+---
 
-## App Flow
+## App Overview
 
-### Pre-App: Research Team Setup (Django Admin)
-1. Participant fills out an offline baseline survey (language preference, caregiver relationship, care recipient functional status, stress/depression level)
-2. Research team enters survey data into Django Admin: participant name, language (EN or ZH), caregiver relationship, care recipient functional status, cohort assignment (all 3 layers)
-3. Django Admin generates a one-time enrollment code and emails it to the participant
-4. Participant receives the email with their code before downloading the app
+### Cohort System (3 layers)
 
-### 1. Enrollment Screen (one-time, never repeated)
-- **Purpose**: Authenticate the participant using their emailed one-time code
-- **Elements**:
-  - WECARE logo and welcome header
-  - Participant code entry field
-  - "Enroll" CTA button
-- **Behavior**: App sends code to backend → validates against DB → retrieves participant's language and cohort profile from survey data → sets app language automatically → creates Cognito session → stores permanent token in SecureStore
-- **Note**: Language is not chosen in-app — it is set from the participant's survey response. No baseline questions are collected in-app.
+Every participant is assigned three cohort dimensions at enrollment from their baseline survey:
 
-### 2. Home / Dashboard Screen
-- **Purpose**: Central hub with card-based navigation to all core features
-- **Elements**:
-  - Today's session card (dark): week/day label, course title, "Start session" button
-  - Two action cards: "Go to Courses" (all 7 weeks) | "Voice Journal" (weekly prompt)
-- **Layout**: Card grid; bottom tab bar: Home | Courses | Journal | Settings
+| Layer | Field | Values |
+|---|---|---|
+| 1 | `group1` | `intervention` / `non_intervention` |
+| 2 | `group2` | `mild` / `moderate` / `severe` (care recipient functional status) |
+| 3 | `group3` | `high` / `low` (baseline stress level, updated by weekly VJ) |
 
-### 3. Daily Session Screen
-- **Purpose**: Deliver daily multimedia curriculum content
-- **Elements**:
-  - Course title, week number, and timestamp
-  - Media tabs: Video | Audio | Text
-  - "Additional Resources" section (PDFs, links)
-  - Emoji feedback bar
-- **Tracking**: Watch time and replay count logged per session
+These three values drive all content routing.
 
-### 4. Voice Journal Screen
-- **Purpose**: Collect weekly participant input about the program and their caregiving experience
-- **Cadence**: Minimum one VJ submission per week (not daily)
-- **Elements**:
-  - Bilingual prompt (EN + ZH shown together)
-  - Audio recording interface with timer
-  - Submit button + progress indicator (e.g., "Week 2/7")
-- **Backend**: Audio uploaded to S3 → AWS Transcribe async pipeline → transcript stored in DB
-- **Personalization**: VJ stress level (`vj_stress_level`) can trigger content variant adjustments for the following week
+### Auth Flow
 
-### 5. Courses (History) Screen
-- **Purpose**: Let participants browse and replay all available sessions
-- **Elements**:
-  - Full list of all sessions grouped by week
-  - Search bar — search by session title only
-  - Read/unread state indicator per session
-- **Layout**: Top search bar, scrollable grouped session list below
+1. Research team enters participant data into Django Admin and generates a one-time enrollment code
+2. Code is emailed to the participant
+3. Participant enters code in the app → backend validates → returns token + language + cohort profile
+4. Token is stored permanently in device SecureStore — no re-login ever
 
-### 6. Settings Screen
-- **Purpose**: Account management
-- **Elements**:
-  - Participant profile header (ID, week, cohort)
-  - Contact us → wecaremason@gmail.com
-  - Delete my data (destructive, with confirmation)
-- **Note**: Language is not changeable in-app — it is set from the participant's survey response and retrieved from the admin console on enrollment.
+### Screens
 
-### 7. Admin Console (Django Admin)
-- **Purpose**: Research team interface — participant setup, cohort management, notifications
-- **Elements**:
-  - Enter baseline survey data per participant (name, language, caregiver relationship, care recipient functional status, cohort assignment across all 3 layers)
-  - Generate enrollment codes and trigger email delivery to participants
-  - Notification scheduler and sending records log
-- **Access**: Web-only (browser-based, no mobile admin)
+| Screen | Purpose |
+|---|---|
+| Enrollment | One-time code entry; language auto-set from backend response |
+| Home | Today's session card + Go to Courses + Voice Journal |
+| Courses | Full session list grouped by week; search by title |
+| Daily Session | Video / Audio / Text tabs, resources, emoji feedback |
+| Voice Journal | Weekly audio recording with bilingual prompt |
+| Settings | Contact us, delete account |
+
+### Django Admin (Research Team)
+
+- Add/edit participants with full cohort assignment
+- Generate and email enrollment codes
+- Upload curriculum sessions (week, day, content URLs)
+- View engagement logs, notification sending records
 
 ### Push Notifications
-- **Daily at 12pm**: "Your daily WeCare session is ready"
-- **24hr unread reminder**: Sent if participant has not opened today's session
-- **Voice Journal reminder**: Sent on scheduled VJ weeks
+
+- Daily at 12pm: session reminder
+- 24hr unread reminder: if participant hasn't opened today's session
+- Weekly VJ reminder: on scheduled journal weeks

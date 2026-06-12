@@ -25,6 +25,19 @@ class VoiceJournalEntry(models.Model):
         (STATUS_FAILED, "Failed"),
     ]
 
+    EMOTION_CALM = "calm"
+    EMOTION_NEUTRAL = "neutral"
+    EMOTION_ANXIOUS = "anxious"
+    EMOTION_SAD = "sad"
+    EMOTION_OVERWHELMED = "overwhelmed"
+    EMOTION_CHOICES = [
+        (EMOTION_CALM, "Calm"),
+        (EMOTION_NEUTRAL, "Neutral"),
+        (EMOTION_ANXIOUS, "Anxious"),
+        (EMOTION_SAD, "Sad"),
+        (EMOTION_OVERWHELMED, "Overwhelmed"),
+    ]
+
     participant = models.ForeignKey(
         "participants.Participant", on_delete=models.CASCADE, related_name="journal_entries"
     )
@@ -33,6 +46,9 @@ class VoiceJournalEntry(models.Model):
     recording_seconds = models.PositiveIntegerField(default=0)
     transcript = models.TextField(blank=True)
     vj_stress_level = models.PositiveSmallIntegerField(null=True, blank=True)
+    emotion_label = models.CharField(
+        max_length=20, choices=EMOTION_CHOICES, blank=True
+    )
     transcription_status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING
     )

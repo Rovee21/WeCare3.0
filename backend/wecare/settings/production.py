@@ -2,11 +2,9 @@ from .base import *
 
 DEBUG = False
 
-# RDS database URL comes from DATABASE_URL env var (set in AWS env / ECS task definition)
-
-# S3 static files (optional — can use WhiteNoise instead)
-# STATICFILES_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
-
+# Railway (and most PaaS) terminate SSL at the load balancer and forward via HTTP internally.
+# This tells Django to trust the X-Forwarded-Proto header so HTTPS is detected correctly.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True

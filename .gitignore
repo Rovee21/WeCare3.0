@@ -1,8 +1,30 @@
+# React Native / Expo
 node_modules
 .expo
 dist
-.DS_Store
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Environment variables — never commit these
+.env
+.env.local
+.env.production
+
+# Firebase credentials — add via EAS secrets instead
+google-services.json
+GoogleService-Info.plist
+
+# iOS / Android signing
+*.keystore
+*.jks
+credentials.json
+*.pem
+*.p8
+*.p12
+
+# macOS
+.DS_Store
+
+# Claude Code project instructions (internal, not for contributors)
 CLAUDE.md

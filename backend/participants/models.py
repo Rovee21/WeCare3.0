@@ -50,11 +50,22 @@ class Participant(models.Model):
         (STAGE_LATE, "Late"),
     ]
 
+    GENDER_MALE = "male"
+    GENDER_FEMALE = "female"
+    GENDER_OTHER = "other"
+    GENDER_CHOICES = [
+        (GENDER_MALE, "Male"),
+        (GENDER_FEMALE, "Female"),
+        (GENDER_OTHER, "Other / Prefer not to say"),
+    ]
+
     user = models.OneToOneField(
         User, on_delete=models.CASCADE, null=True, blank=True, related_name="participant"
     )
     label = models.CharField(max_length=200)
     email = models.EmailField(unique=True)
+    gender = models.CharField(max_length=10, choices=GENDER_CHOICES, blank=True)
+    age = models.PositiveSmallIntegerField(null=True, blank=True)
     language = models.CharField(max_length=2, choices=LANGUAGE_CHOICES, default=LANGUAGE_EN)
     group1 = models.CharField(max_length=20, choices=GROUP1_CHOICES)
     group2 = models.CharField(max_length=20, choices=GROUP2_CHOICES)

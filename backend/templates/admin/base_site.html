@@ -1,0 +1,8 @@
+{% extends "admin/base.html" %}
+{% load i18n %}
+
+{% block userlinks %}
+<a href="{% url 'admin:logout' %}">{% translate 'Log out' %}</a>
+{% endblock %}
+
+{% block theme %}{% endblock %}

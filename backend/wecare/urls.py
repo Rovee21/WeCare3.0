@@ -6,6 +6,7 @@ from django.urls import path, include, reverse as _reverse
 admin.site.site_header = "WeCare Research Admin"
 admin.site.site_title = "WeCare Admin"
 admin.site.index_title = "Research Dashboard"
+admin.site.enable_nav_sidebar = False
 
 
 def _admin_index(self, request, extra_context=None):

@@ -99,11 +99,6 @@ class ParticipantAdmin(admin.ModelAdmin):
         "sessions_completed", "vj_count", "last_active",
         "code_status",
     ]
-    list_filter = [
-        "is_enrolled", "language",
-        "group1", "group2", "group3",
-        "adrd_relationship_group", "stage",
-    ]
     search_fields = ["label", "email"]
     readonly_fields = [
         "participant_id_display", "is_enrolled", "enrolled_at",

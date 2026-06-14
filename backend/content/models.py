@@ -76,7 +76,7 @@ class ParticipantSession(models.Model):
 
 
 class EngagementLog(models.Model):
-    """One row per engagement event. Fields match CLAUDE.md tracking variables exactly."""
+    """One row per engagement event."""
     participant = models.ForeignKey(
         "participants.Participant", on_delete=models.CASCADE, related_name="engagement_logs"
     )

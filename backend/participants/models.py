@@ -41,15 +41,6 @@ class Participant(models.Model):
         (RELATIONSHIP_RELATIVE, "Other Relative"),
     ]
 
-    STAGE_EARLY = "early"
-    STAGE_MIDDLE = "middle"
-    STAGE_LATE = "late"
-    STAGE_CHOICES = [
-        (STAGE_EARLY, "Early"),
-        (STAGE_MIDDLE, "Middle"),
-        (STAGE_LATE, "Late"),
-    ]
-
     GENDER_MALE = "male"
     GENDER_FEMALE = "female"
     GENDER_OTHER = "other"
@@ -62,7 +53,6 @@ class Participant(models.Model):
     user = models.OneToOneField(
         User, on_delete=models.CASCADE, null=True, blank=True, related_name="participant"
     )
-    label = models.CharField(max_length=200)
     email = models.EmailField(unique=True)
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES, blank=True)
     age = models.PositiveSmallIntegerField(null=True, blank=True)
@@ -71,12 +61,10 @@ class Participant(models.Model):
     group2 = models.CharField(max_length=20, choices=GROUP2_CHOICES)
     group3 = models.CharField(max_length=20, choices=GROUP3_CHOICES)
     adrd_relationship_group = models.CharField(max_length=20, choices=RELATIONSHIP_CHOICES)
-    stage = models.CharField(max_length=20, choices=STAGE_CHOICES)
 
     enrollment_week = models.PositiveSmallIntegerField(default=1)
     enrolled_at = models.DateTimeField(null=True, blank=True)
     is_enrolled = models.BooleanField(default=False)
-    # Cleared to None after use so it cannot be reused
     enrollment_code = models.CharField(max_length=50, unique=True, null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -86,7 +74,7 @@ class Participant(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"{self.label} ({self.email})"
+        return self.participant_id
 
     @property
     def participant_id(self):
@@ -101,7 +89,6 @@ class Participant(models.Model):
         return min(week, 7)
 
     def generate_enrollment_code(self):
-        # 8-char uppercase alphanumeric, e.g. "A3BK92XZ"
         code = secrets.token_urlsafe(6).upper()[:8]
         self.enrollment_code = code
         self.save(update_fields=["enrollment_code"])

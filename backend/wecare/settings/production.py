@@ -2,8 +2,8 @@ from .base import *
 
 DEBUG = False
 
-# Railway (and most PaaS) terminate SSL at the load balancer and forward via HTTP internally.
-# This tells Django to trust the X-Forwarded-Proto header so HTTPS is detected correctly.
+# AWS Elastic Beanstalk (and ALB) terminate SSL at the load balancer.
+# Trust the forwarded proto header so Django detects HTTPS correctly.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True

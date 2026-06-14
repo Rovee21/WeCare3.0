@@ -14,13 +14,11 @@ class ParticipantProfileSerializer(serializers.ModelSerializer):
         model = Participant
         fields = [
             "participant_id",
-            "label",
             "language",
             "group1",
             "group2",
             "group3",
             "adrd_relationship_group",
-            "stage",
             "week_number",
             "enrolled_at",
         ]

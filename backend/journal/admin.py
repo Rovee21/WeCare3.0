@@ -18,7 +18,7 @@ class VoiceJournalEntryAdmin(admin.ModelAdmin):
         "transcript_excerpt", "submitted_at",
     ]
     list_filter = ["week_number", "transcription_status", "submitted_at"]
-    search_fields = ["participant__label", "transcript"]
+    search_fields = ["participant__email", "transcript"]
     date_hierarchy = "submitted_at"
     list_per_page = 50
     readonly_fields = [
@@ -36,9 +36,9 @@ class VoiceJournalEntryAdmin(admin.ModelAdmin):
         return False
 
     def participant_label(self, obj):
-        return obj.participant.label if obj.participant else "—"
+        return obj.participant.participant_id if obj.participant else "—"
     participant_label.short_description = "Participant"
-    participant_label.admin_order_field = "participant__label"
+    participant_label.admin_order_field = "participant__email"
 
     def duration_display(self, obj):
         m, s = divmod(obj.recording_seconds, 60)

@@ -48,7 +48,6 @@ def enroll(request):
         "group2": participant.group2,
         "group3": participant.group3,
         "adrd_relationship_group": participant.adrd_relationship_group,
-        "stage": participant.stage,
     })
 
 

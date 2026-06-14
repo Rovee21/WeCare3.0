@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.db.models import Count, Sum, Avg
+from django.db.models import Count, Q
 from django.utils.html import format_html
 from .models import Session, AdditionalResource, EngagementLog, NotificationLog, ParticipantSession
 
@@ -41,18 +41,15 @@ class SessionAdmin(admin.ModelAdmin):
     )
 
     def get_queryset(self, request):
-        qs = super().get_queryset(request)
-        return qs.annotate(_read_count=Count("participantsession", filter=__import__("django.db.models", fromlist=["Q"]).Q(participantsession__is_read=True)))
+        return super().get_queryset(request).annotate(
+            _read_count=Count("participantsession", filter=Q(participantsession__is_read=True))
+        )
 
     def cohort_target(self, obj):
-        parts = []
-        if obj.target_group1:
-            parts.append(obj.get_target_group1_display() if hasattr(obj, "get_target_group1_display") else obj.target_group1)
-        if obj.target_group2:
-            parts.append(obj.target_group2.capitalize())
-        if obj.target_group3:
-            parts.append(obj.target_group3.replace("_", " ").title())
-        return " · ".join(parts) if parts else format_html('<span style="color:#999;">All</span>')
+        parts = [
+            p for p in [obj.target_group1, obj.target_group2, obj.target_group3] if p
+        ]
+        return " · ".join(p.replace("_", " ").title() for p in parts) if parts else format_html('<span style="color:#999;">All</span>')
     cohort_target.short_description = "Cohort Target"
 
     def has_video(self, obj):
@@ -87,7 +84,7 @@ class EngagementLogAdmin(admin.ModelAdmin):
         "emoji_taps", "logged_at",
     ]
     list_filter = ["week_number", "logged_at"]
-    search_fields = ["participant__label", "course_title"]
+    search_fields = ["participant__email", "course_title"]
     date_hierarchy = "logged_at"
     list_per_page = 100
     readonly_fields = [f.name for f in EngagementLog._meta.fields]
@@ -99,9 +96,9 @@ class EngagementLogAdmin(admin.ModelAdmin):
         return False
 
     def participant_label(self, obj):
-        return obj.participant.label if obj.participant else "—"
+        return obj.participant.participant_id if obj.participant else "—"
     participant_label.short_description = "Participant"
-    participant_label.admin_order_field = "participant__label"
+    participant_label.admin_order_field = "participant__email"
 
     def video_watch_time(self, obj):
         if not obj.video_last_time:
@@ -133,7 +130,7 @@ class NotificationLogAdmin(admin.ModelAdmin):
         "sent_at", "opened_at", "was_opened",
     ]
     list_filter = ["notification_type", "sent_at"]
-    search_fields = ["participant__label", "push_up"]
+    search_fields = ["participant__email", "push_up"]
     date_hierarchy = "sent_at"
     list_per_page = 100
     readonly_fields = [f.name for f in NotificationLog._meta.fields]
@@ -145,9 +142,9 @@ class NotificationLogAdmin(admin.ModelAdmin):
         return False
 
     def participant_label(self, obj):
-        return obj.participant.label if obj.participant else "—"
+        return obj.participant.participant_id if obj.participant else "—"
     participant_label.short_description = "Participant"
-    participant_label.admin_order_field = "participant__label"
+    participant_label.admin_order_field = "participant__email"
 
     def was_opened(self, obj):
         if obj.opened_at:

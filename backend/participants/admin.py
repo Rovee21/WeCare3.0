@@ -92,26 +92,25 @@ _setup_inlines()
 @admin.register(Participant)
 class ParticipantAdmin(admin.ModelAdmin):
     list_display = [
-        "label", "email", "language",
+        "participant_id_display", "email", "language",
         "group1", "group2", "group3",
         "adrd_relationship_group",
         "is_enrolled", "current_week_display",
         "sessions_completed", "vj_count", "last_active",
         "code_status",
     ]
-    search_fields = ["label", "email"]
+    search_fields = ["email"]
     readonly_fields = [
         "participant_id_display", "is_enrolled", "enrolled_at",
-        "current_week_display", "latest_vj_stress", "latest_emotion_status",
+        "current_week_display", "latest_vj_stress",
         "user", "created_at", "updated_at",
     ]
     inlines = [EngagementLogInline, SessionCompletionInline, VoiceJournalInline]
-    date_hierarchy = "enrolled_at"
     list_per_page = 50
 
     fieldsets = (
         ("Identity", {
-            "fields": ("participant_id_display", "label", "email", "language", "is_enrolled"),
+            "fields": ("participant_id_display", "email", "language", "is_enrolled"),
         }),
         ("Demographics", {
             "fields": ("gender", "age"),
@@ -125,11 +124,11 @@ class ParticipantAdmin(admin.ModelAdmin):
             "description": "Relationship and burden level from baseline survey.",
         }),
         ("Cohort Assignment", {
-            "fields": ("group1", "group2", "stage"),
+            "fields": ("group1", "group2"),
             "description": "Set from offline baseline survey data. Do not change after enrollment.",
         }),
         ("Clinical Indicators (from Voice Journal)", {
-            "fields": ("latest_vj_stress", "latest_emotion_status"),
+            "fields": ("latest_vj_stress",),
         }),
         ("Enrollment", {
             "fields": ("enrollment_code",),
@@ -142,6 +141,11 @@ class ParticipantAdmin(admin.ModelAdmin):
     )
 
     actions = ["generate_code_only", "generate_and_email_code"]
+
+    def change_view(self, request, object_id, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        extra_context["show_history"] = False
+        return super().change_view(request, object_id, form_url, extra_context)
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -184,25 +188,6 @@ class ParticipantAdmin(admin.ModelAdmin):
             color, level, entry.week_number,
         )
     latest_vj_stress.short_description = "VJ Stress Level"
-
-    def latest_emotion_status(self, obj):
-        entry = obj.journal_entries.exclude(emotion_label="").order_by("-submitted_at").first()
-        if not entry:
-            return format_html('<span style="color:#999;">No data yet</span>')
-        colors = {
-            "calm": "#2e7d32",
-            "neutral": "#555",
-            "anxious": "#f57c00",
-            "sad": "#1565c0",
-            "overwhelmed": "#c62828",
-        }
-        color = colors.get(entry.emotion_label, "#555")
-        return format_html(
-            '<span style="color:{};font-weight:600;">{}</span> '
-            '<span style="color:#999;font-size:11px;">(Week {})</span>',
-            color, entry.get_emotion_label_display(), entry.week_number,
-        )
-    latest_emotion_status.short_description = "Emotion Status"
 
     def sessions_completed(self, obj):
         count = getattr(obj, "_sessions_completed", 0)
@@ -256,7 +241,7 @@ class ParticipantAdmin(admin.ModelAdmin):
             send_mail(
                 subject="Your WeCare Enrollment Code",
                 message=(
-                    f"Hello {p.label},\n\n"
+                    f"Hello {p.participant_id},\n\n"
                     f"Your WeCare program enrollment code is:\n\n"
                     f"    {code}\n\n"
                     f"Please enter this code in the WeCare app to get started.\n\n"

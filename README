@@ -21,17 +21,18 @@ A bilingual (English + Mandarin) mobile app delivering a structured 7-week careg
 
 ```
 WeCare3.0/
-  App.js                        # Entry point
-  app.json                      # Expo config
-  babel.config.js
-  package.json
-  src/
-    screens/                    # One file per screen
-    navigation/                 # RootNavigator (stack + bottom tabs)
-    services/                   # All API calls (authService, sessionService, userService)
-    i18n/                       # Translations (en.json, zh.json)
-    constants/                  # Colors, theme
-  backend/
+  mobile/                       # React Native + Expo user-facing app
+    App.js                      # Entry point
+    app.json                    # Expo config
+    babel.config.js
+    package.json
+    src/
+      screens/                  # One file per screen
+      navigation/               # RootNavigator (stack + bottom tabs)
+      services/                 # All API calls (authService, sessionService, userService)
+      i18n/                     # Translations (en.json, zh.json)
+      constants/                # Colors, theme
+  backend/                      # Django REST API + Admin Console
     manage.py
     docker-compose.yml          # Runs Postgres + Django together
     Dockerfile
@@ -66,8 +67,8 @@ The mobile app runs entirely independently of the backend — it uses mock data 
 
 **Step 1 — Install dependencies**
 
-From the project root:
 ```bash
+cd mobile
 npm install
 ```
 
@@ -147,7 +148,7 @@ A successful response returns a token, language, participant ID, and cohort data
 
 ### Mobile app
 
-The mobile app has no `.env` file yet — the API base URL is set in `src/services/`. When connecting to the real backend, update `API_BASE_URL` there.
+The mobile app has no `.env` file yet — the API base URL is set in `mobile/src/services/api.js`. When connecting to the real backend, update `BASE_URL` there.
 
 ### Backend (`backend/.env`)
 
@@ -171,16 +172,18 @@ Copy from `backend/.env.example`. Required fields:
 
 ## Key Commands
 
-### Mobile
+### Mobile (run from the `mobile/` directory)
 ```bash
+cd mobile
 npm install              # Install dependencies
 npx expo start --clear   # Start dev server (clears cache)
 npx expo start --ios     # iOS simulator only
 npx expo start --android # Android emulator only
 ```
 
-### Backend
+### Backend (run from the `backend/` directory)
 ```bash
+cd backend
 docker-compose up                                          # Start everything
 docker-compose up -d                                       # Start in background
 docker-compose down                                        # Stop everything

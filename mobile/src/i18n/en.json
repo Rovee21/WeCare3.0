@@ -1,22 +1,26 @@
 {
   "enrollment": {
-    "title": "Welcome to WECARE 3.0",
-    "subtitle": "Supporting family caregivers, one day at a time.",
-    "codePlaceholder": "Enter your code...",
-    "cta": "Get Started →",
+    "title": "Create account",
+    "subtitle": "Enter your WECARE ID",
+    "userIdLabel": "User ID",
+    "codePlaceholder": "Enter your ID...",
+    "cta": "Create account",
     "privacy": "By continuing you agree to our Privacy Policy"
   },
   "home": {
-    "greeting": "Good morning,",
-    "welcomeBack": "Welcome back",
-    "todaysSession": "Today's session",
-    "startSession": "Start session",
-    "goToCourses": "Go to Courses",
-    "goToCoursesSubtitle": "All 7 weeks",
+    "greeting": "Good Morning,",
+    "coursesCard": "Courses",
+    "coursesNotWatched": "{{n}} courses not watched yet",
     "voiceJournal": "Voice Journal",
-    "voiceJournalSubtitle": "Week {{week}} prompt ready"
+    "lastEntry": "Your Last Entry: Yesterday",
+    "contactUs": "Contact Us"
   },
   "courses": {
+    "heading": "Courses",
+    "subheadingPre": "Currently, you have",
+    "subheadingPost": "more courses to complete for the day.",
+    "progressLabel": "Your progress",
+    "progress": "{{completed}} of {{total}} courses",
     "searchPlaceholder": "Search by session title...",
     "video": "Video",
     "audio": "Audio",
@@ -24,8 +28,9 @@
   },
   "session": {
     "courseList": "Course list",
-    "additionalResources": "Additional resources",
+    "additionalResources": "Additional materials",
     "markAsRead": "Mark as read",
+    "comments": "Comments",
     "tabs": {
       "video": "Video",
       "audio": "Audio",
@@ -34,12 +39,18 @@
   },
   "contactUs": {
     "title": "Contact Us",
+    "coordinator": "Coordinator",
+    "emailWecare": "Email WECARE",
     "intro": "Have questions or need support? Reach out to the WECARE research team.",
     "emailLabel": "Email",
     "phoneLabel": "Phone"
   },
   "settings": {
+    "settingsTitle": "Settings",
     "language": "Language",
+    "preferences": "Preferences",
+    "dailyReminders": "Daily reminders",
+    "largerText": "Larger text",
     "contactUs": "Contact us",
     "deleteMyData": "Delete my data",
     "deleteConfirmTitle": "Delete your data?",
@@ -53,6 +64,7 @@
     "home": "Home",
     "courses": "Courses",
     "journal": "Journal",
+    "contact": "Contact",
     "settings": "Settings"
   }
 }

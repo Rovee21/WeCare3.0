@@ -1,22 +1,26 @@
 {
   "enrollment": {
-    "title": "欢迎使用 WECARE 3.0",
-    "subtitle": "每天支持家庭照护者。",
-    "codePlaceholder": "请输入您的参与码...",
-    "cta": "开始 →",
+    "title": "创建账户",
+    "subtitle": "请输入您的WECARE ID",
+    "userIdLabel": "用户ID",
+    "codePlaceholder": "请输入您的ID...",
+    "cta": "创建账户",
     "privacy": "继续即表示您同意我们的隐私政策"
   },
   "home": {
     "greeting": "早上好，",
-    "welcomeBack": "欢迎回来",
-    "todaysSession": "今日课程",
-    "startSession": "开始课程",
-    "goToCourses": "查看课程",
-    "goToCoursesSubtitle": "全部7周",
+    "coursesCard": "课程",
+    "coursesNotWatched": "{{n}}个课程尚未观看",
     "voiceJournal": "语音日记",
-    "voiceJournalSubtitle": "第{{week}}周提示已准备好"
+    "lastEntry": "上次记录：昨天",
+    "contactUs": "联系我们"
   },
   "courses": {
+    "heading": "课程",
+    "subheadingPre": "您今天还有",
+    "subheadingPost": "个课程需要完成。",
+    "progressLabel": "您的进度",
+    "progress": "{{total}}个课程中已完成{{completed}}个",
     "searchPlaceholder": "按课程标题搜索...",
     "video": "视频",
     "audio": "音频",
@@ -24,8 +28,9 @@
   },
   "session": {
     "courseList": "课程列表",
-    "additionalResources": "附加资源",
+    "additionalResources": "补充材料",
     "markAsRead": "标记为已读",
+    "comments": "评论",
     "tabs": {
       "video": "视频",
       "audio": "音频",
@@ -34,12 +39,18 @@
   },
   "contactUs": {
     "title": "联系我们",
+    "coordinator": "协调员",
+    "emailWecare": "发邮件给WECARE",
     "intro": "如有疑问或需要支持，请联系WECARE研究团队。",
     "emailLabel": "电子邮件",
     "phoneLabel": "电话"
   },
   "settings": {
+    "settingsTitle": "设置",
     "language": "语言",
+    "preferences": "偏好设置",
+    "dailyReminders": "每日提醒",
+    "largerText": "大字体",
     "contactUs": "联系我们",
     "deleteMyData": "删除我的数据",
     "deleteConfirmTitle": "删除您的数据？",
@@ -53,6 +64,7 @@
     "home": "主页",
     "courses": "课程",
     "journal": "日记",
+    "contact": "联系",
     "settings": "设置"
   }
 }

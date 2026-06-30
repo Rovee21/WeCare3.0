@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { enrollWithCode } from '../services/authService';
@@ -26,30 +26,31 @@ export default function EnrollmentScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <View style={styles.iconContainer}>
-          <Text style={styles.icon}>♥</Text>
+        <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
+
+        <View style={styles.card}>
+          <Text style={styles.title}>{t('enrollment.title')}</Text>
+          <Text style={styles.subtitle}>{t('enrollment.subtitle')}</Text>
+
+          <Text style={styles.inputLabel}>{t('enrollment.userIdLabel')}</Text>
+          <TextInput
+            style={styles.input}
+            placeholder={t('enrollment.codePlaceholder')}
+            placeholderTextColor={Colors.textSecondary}
+            value={code}
+            onChangeText={setCode}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
+            onPress={handleEnroll}
+            disabled={loading}
+          >
+            <Text style={styles.buttonText}>{t('enrollment.cta')}</Text>
+          </TouchableOpacity>
         </View>
-
-        <Text style={styles.title}>{t('enrollment.title')}</Text>
-        <Text style={styles.subtitle}>{t('enrollment.subtitle')}</Text>
-
-        <TextInput
-          style={styles.input}
-          placeholder={t('enrollment.codePlaceholder')}
-          placeholderTextColor={Colors.textSecondary}
-          value={code}
-          onChangeText={setCode}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleEnroll}
-          disabled={loading}
-        >
-          <Text style={styles.buttonText}>{t('enrollment.cta')}</Text>
-        </TouchableOpacity>
       </View>
 
       <Text style={styles.privacy}>{t('enrollment.privacy')}</Text>
@@ -69,58 +70,65 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 32,
   },
-  iconContainer: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: Colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
+  logo: {
+    width: 120,
+    height: 120,
+    marginBottom: 32,
   },
-  icon: {
-    fontSize: 32,
-    color: Colors.white,
+  card: {
+    width: '100%',
+    backgroundColor: Colors.white,
+    borderRadius: 20,
+    padding: 28,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
   },
   title: {
     fontSize: 26,
     fontWeight: '700',
-    color: Colors.accent,
+    color: Colors.textPrimary,
     textAlign: 'center',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: 14,
     color: Colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 40,
-    lineHeight: 22,
+    marginBottom: 28,
+  },
+  inputLabel: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginBottom: 6,
   },
   input: {
     width: '100%',
-    height: 52,
+    height: 50,
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: 10,
     paddingHorizontal: 16,
     fontSize: 16,
     color: Colors.textPrimary,
-    backgroundColor: Colors.white,
-    marginBottom: 16,
+    backgroundColor: Colors.background,
+    marginBottom: 20,
   },
   button: {
     width: '100%',
-    height: 52,
-    backgroundColor: Colors.accent,
+    height: 50,
+    backgroundColor: Colors.accentLight,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.accent,
   },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
+  buttonDisabled: { opacity: 0.6 },
   buttonText: {
-    color: Colors.white,
+    color: Colors.accent,
     fontSize: 16,
     fontWeight: '600',
   },

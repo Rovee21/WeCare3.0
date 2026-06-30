@@ -4,32 +4,40 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Colors } from '../constants/colors';
 
-export default function ContactUsScreen({ navigation }) {
+export default function ContactUsScreen() {
   const { t } = useTranslation();
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backText}>← {t('settings.settingsTitle')}</Text>
-        </TouchableOpacity>
-      </View>
-
       <View style={styles.content}>
-        <Text style={styles.header}>{t('contactUs.title')}</Text>
-        <Text style={styles.intro}>{t('contactUs.intro')}</Text>
+        <Text style={styles.heading}>{t('contactUs.title')}</Text>
 
-        <View style={styles.card}>
-          <Text style={styles.label}>{t('contactUs.emailLabel')}</Text>
-          <TouchableOpacity onPress={() => Linking.openURL('mailto:wecaremason@gmail.com')}>
-            <Text style={styles.link}>wecaremason@gmail.com</Text>
-          </TouchableOpacity>
+        {/* Coordinator card — navy */}
+        <View style={styles.coordinatorCard}>
+          <View style={styles.coordinatorInfo}>
+            <Text style={styles.coordinatorTitle}>{t('contactUs.coordinator')}</Text>
+            <Text style={styles.coordinatorPhone}>XXX-XXX-XXXX</Text>
+          </View>
+          <View style={styles.phoneCircle}>
+            <Text style={styles.phoneIcon}>📞</Text>
+          </View>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.label}>{t('contactUs.phoneLabel')}</Text>
-          <Text style={styles.value}>XXX-XX-XXXX</Text>
-        </View>
+        {/* Email card — white */}
+        <TouchableOpacity
+          style={styles.emailCard}
+          onPress={() => Linking.openURL('mailto:wecaremason@gmail.com')}
+          activeOpacity={0.8}
+        >
+          <View style={styles.emailIconCircle}>
+            <Text style={styles.emailIcon}>✉️</Text>
+          </View>
+          <View style={styles.emailInfo}>
+            <Text style={styles.emailTitle}>{t('contactUs.emailWecare')}</Text>
+            <Text style={styles.emailAddress}>wecaremason@gmail.com</Text>
+          </View>
+          <Text style={styles.arrow}>→</Text>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -37,21 +45,63 @@ export default function ContactUsScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  topBar: { paddingHorizontal: 16, paddingVertical: 12 },
-  backButton: { padding: 4, alignSelf: 'flex-start' },
-  backText: { fontSize: 15, color: Colors.accent, fontWeight: '500' },
-  content: { paddingHorizontal: 20, paddingTop: 8 },
-  header: { fontSize: 24, fontWeight: '700', color: Colors.textPrimary, marginBottom: 8 },
-  intro: { fontSize: 15, color: Colors.textSecondary, marginBottom: 24, lineHeight: 22 },
-  card: {
-    backgroundColor: Colors.white,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: 16,
+  content: { paddingHorizontal: 20, paddingTop: 16 },
+  heading: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginBottom: 24,
+  },
+  coordinatorCard: {
+    backgroundColor: Colors.primary,
+    borderRadius: 16,
+    padding: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 12,
   },
-  label: { fontSize: 12, color: Colors.textSecondary, fontWeight: '600', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
-  link: { fontSize: 16, color: Colors.accent, fontWeight: '500' },
-  value: { fontSize: 16, color: Colors.textPrimary, fontWeight: '500' },
+  coordinatorInfo: { flex: 1 },
+  coordinatorTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.white,
+    marginBottom: 4,
+  },
+  coordinatorPhone: { fontSize: 14, color: 'rgba(255,255,255,0.75)' },
+  phoneCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  phoneIcon: { fontSize: 22 },
+  emailCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  emailIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.accentLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  emailIcon: { fontSize: 20 },
+  emailInfo: { flex: 1 },
+  emailTitle: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary, marginBottom: 2 },
+  emailAddress: { fontSize: 13, color: Colors.textSecondary },
+  arrow: { fontSize: 18, color: Colors.textSecondary },
 });

@@ -6,6 +6,14 @@ import { getTodaysSession } from '../services/sessionService';
 import { getStoredProfile } from '../services/authService';
 import { Colors } from '../constants/colors';
 
+function IconCircle({ emoji }) {
+  return (
+    <View style={styles.iconCircle}>
+      <Text style={styles.iconEmoji}>{emoji}</Text>
+    </View>
+  );
+}
+
 export default function HomeScreen({ navigation }) {
   const { t } = useTranslation();
   const [todaysSession, setTodaysSession] = useState(null);
@@ -16,60 +24,65 @@ export default function HomeScreen({ navigation }) {
     getStoredProfile().then(setProfile);
   }, []);
 
+  const name = profile?.label ?? '';
+  const greeting = `${t('home.greeting')}${name ? ' ' + name : ''}`;
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>{t('home.greeting')}</Text>
-            <Text style={styles.welcomeBack}>{t('home.welcomeBack')} 👋</Text>
-          </View>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {profile?.participantId ? profile.participantId.slice(-2) : ''}
-            </Text>
-          </View>
-        </View>
+        <Text style={styles.greeting}>{greeting}</Text>
 
-        {todaysSession && (
-          <TouchableOpacity
-            style={styles.sessionCard}
-            onPress={() => navigation.navigate('CoursesStack', {
-              screen: 'DailySession',
-              params: { course: todaysSession },
-            })}
-          >
-            <Text style={styles.sessionLabel}>
-              {t('home.todaysSession')} · Week {todaysSession.week_number}, Day {todaysSession.day_number}
-            </Text>
-            <Text style={styles.sessionTitle}>{todaysSession.title}</Text>
-            <View style={styles.startButton}>
-              <Text style={styles.startButtonText}>{t('home.startSession')}</Text>
+        {/* Courses card */}
+        <TouchableOpacity
+          style={styles.card}
+          onPress={() => navigation.navigate('Courses')}
+          activeOpacity={0.85}
+        >
+          <View style={styles.cardBody}>
+            <View style={styles.cardLeft}>
+              {todaysSession && (
+                <Text style={styles.weekLabel}>WEEK {todaysSession.week_number}</Text>
+              )}
+              <Text style={styles.cardTitle}>{t('home.coursesCard')}</Text>
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{t('home.coursesNotWatched', { n: 2 })}</Text>
+              </View>
+              {todaysSession && (
+                <Text style={styles.cardSub}>{todaysSession.title}</Text>
+              )}
             </View>
-          </TouchableOpacity>
-        )}
+            <IconCircle emoji="📚" />
+          </View>
+        </TouchableOpacity>
 
-        <View style={styles.cardRow}>
-          <TouchableOpacity
-            style={styles.actionCard}
-            onPress={() => navigation.navigate('Courses')}
-          >
-            <Text style={styles.cardIcon}>📖</Text>
-            <Text style={styles.cardTitle}>{t('home.goToCourses')}</Text>
-            <Text style={styles.cardSubtitle}>{t('home.goToCoursesSubtitle')}</Text>
-          </TouchableOpacity>
+        {/* Voice Journal card */}
+        <TouchableOpacity
+          style={styles.card}
+          onPress={() => navigation.navigate('Journal')}
+          activeOpacity={0.85}
+        >
+          <View style={styles.cardBody}>
+            <View style={styles.cardLeft}>
+              <Text style={styles.cardTitle}>{t('home.voiceJournal')}</Text>
+              <Text style={styles.cardSub}>{t('home.lastEntry')}</Text>
+            </View>
+            <IconCircle emoji="🎙️" />
+          </View>
+        </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.actionCard}
-            onPress={() => navigation.navigate('Journal')}
-          >
-            <Text style={styles.cardIcon}>🎙️</Text>
-            <Text style={styles.cardTitle}>{t('home.voiceJournal')}</Text>
-            <Text style={styles.cardSubtitle}>
-              {t('home.voiceJournalSubtitle', { week: profile?.weekNumber ?? 1 })}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        {/* Contact Us card */}
+        <TouchableOpacity
+          style={styles.card}
+          onPress={() => navigation.navigate('Contact')}
+          activeOpacity={0.85}
+        >
+          <View style={styles.cardBody}>
+            <View style={styles.cardLeft}>
+              <Text style={styles.cardTitle}>{t('home.contactUs')}</Text>
+            </View>
+            <IconCircle emoji="📞" />
+          </View>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -77,50 +90,67 @@ export default function HomeScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  scroll: { padding: 20 },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+  scroll: { padding: 20, paddingTop: 12 },
+  greeting: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: Colors.textPrimary,
     marginBottom: 24,
   },
-  greeting: { fontSize: 16, color: Colors.textSecondary },
-  welcomeBack: { fontSize: 22, fontWeight: '700', color: Colors.textPrimary },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.cardBackground,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  avatarText: { fontSize: 13, fontWeight: '600', color: Colors.textSecondary },
-  sessionCard: {
-    backgroundColor: Colors.primary,
+  card: {
+    backgroundColor: Colors.white,
     borderRadius: 16,
     padding: 20,
-    marginBottom: 16,
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  sessionLabel: { fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 6 },
-  sessionTitle: { fontSize: 20, fontWeight: '700', color: Colors.white, marginBottom: 16 },
-  startButton: {
-    backgroundColor: Colors.accent,
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+  cardBody: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  cardLeft: { flex: 1, paddingRight: 12 },
+  weekLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+  cardTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginBottom: 8,
+  },
+  badge: {
     alignSelf: 'flex-start',
+    backgroundColor: Colors.accentLight,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    marginBottom: 6,
   },
-  startButtonText: { color: Colors.white, fontWeight: '600', fontSize: 14 },
-  cardRow: { flexDirection: 'row', gap: 12 },
-  actionCard: {
-    flex: 1,
-    backgroundColor: Colors.cardBackground,
-    borderRadius: 16,
-    padding: 16,
+  badgeText: {
+    fontSize: 12,
+    color: Colors.accent,
+    fontWeight: '500',
   },
-  cardIcon: { fontSize: 24, marginBottom: 8 },
-  cardTitle: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary, marginBottom: 4 },
-  cardSubtitle: { fontSize: 12, color: Colors.textSecondary },
+  cardSub: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  iconCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconEmoji: { fontSize: 22 },
 });

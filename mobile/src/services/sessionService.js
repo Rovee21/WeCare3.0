@@ -38,22 +38,23 @@ const MOCK_COURSES = [
   },
 ];
 
+import { apiFetch } from './api';
+
 export async function getTodaysSession() {
-  // TODO: GET /api/sessions/today
-  return MOCK_COURSES[1];
+  return await apiFetch('/sessions/today/');
 }
 
 export async function getAllSessions() {
-  // TODO: GET /api/sessions
-  return MOCK_COURSES;
+  return await apiFetch('/sessions/');
 }
 
 export async function markAsRead(courseId) {
-  // TODO: POST /api/sessions/:id/read
-  console.log('markAsRead', courseId);
+  return await apiFetch(`/sessions/${courseId}/read/`, { method: 'POST' });
 }
 
 export async function logEngagement(eventData) {
-  // TODO: POST /api/engagement
-  console.log('logEngagement', eventData);
+  return await apiFetch('/engagement/', {
+    method: 'POST',
+    body: JSON.stringify(eventData),
+  });
 }

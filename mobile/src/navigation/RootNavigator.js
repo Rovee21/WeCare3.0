@@ -10,13 +10,15 @@ import CoursesScreen from '../screens/CoursesScreen';
 import DailySessionScreen from '../screens/DailySessionScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import ContactUsScreen from '../screens/ContactUsScreen';
-import JournalPlaceholderScreen from '../screens/JournalPlaceholderScreen';
+import VoiceJournalScreen from '../screens/VoiceJournalScreen';
+import SurveyScreen from '../screens/SurveyScreen';
 import { Colors } from '../constants/colors';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 const CoursesStack = createNativeStackNavigator();
 const SettingsStack = createNativeStackNavigator();
+const JournalStack = createNativeStackNavigator();
 
 function CoursesNavigator() {
   return (
@@ -33,6 +35,15 @@ function SettingsNavigator() {
       <SettingsStack.Screen name="SettingsMain" component={SettingsScreen} />
       <SettingsStack.Screen name="ContactUs" component={ContactUsScreen} />
     </SettingsStack.Navigator>
+  );
+}
+
+function JournalNavigator() {
+  return (
+    <JournalStack.Navigator screenOptions={{ headerShown: false }}>
+      <JournalStack.Screen name="VoiceJournal" component={VoiceJournalScreen} />
+      <JournalStack.Screen name="Survey" component={SurveyScreen} />
+    </JournalStack.Navigator>
   );
 }
 
@@ -59,7 +70,7 @@ function MainTabs() {
       />
       <Tab.Screen
         name="Journal"
-        component={JournalPlaceholderScreen}
+        component={JournalNavigator}
         options={{ tabBarLabel: t('tabs.journal'), tabBarIcon: ({ color }) => <Text style={{ fontSize: 18, color }}>🎙️</Text> }}
       />
       <Tab.Screen

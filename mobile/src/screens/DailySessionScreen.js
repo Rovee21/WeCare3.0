@@ -4,16 +4,39 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { logEngagement, markAsRead } from '../services/sessionService';
 import { Colors } from '../constants/colors';
+import { useVideoPlayer, VideoView } from 'expo-video';
 
 export default function DailySessionScreen({ route, navigation }) {
   const { t } = useTranslation();
   const { course } = route.params;
   const [activeTab, setActiveTab] = useState('Video');
+  const startTimeRef = React.useRef(Date.now());
+  const videoOpenRef = React.useRef(0);
 
   useEffect(() => {
-    // Mark as read when the screen is opened
     if (course?.id) markAsRead(course.id).catch(() => {});
+    startTimeRef.current = Date.now();
+
+    return () => {
+      const secondsSpent = Math.round((Date.now() - startTimeRef.current) / 1000);
+      const minutesSpent = parseFloat((secondsSpent / 60).toFixed(2));
+      console.log('Leaving session, seconds spent:', secondsSpent);
+      if (secondsSpent > 3) {
+        logEngagement({
+          course_title: course?.title || '',
+          week_number: course?.week_number || course?.weekNumber || 1,
+          read_minutes: minutesSpent,
+          read_count: 1,
+          video_open_count: videoOpenRef.current,
+        }).then(() => console.log('Engagement logged successfully'))
+          .catch((e) => console.log('Engagement log FAILED:', e.message));
+      }
+    };
   }, [course?.id]);
+
+  const player = useVideoPlayer(course?.video_url || '', player => {
+    player.loop = false;
+  });
 
   const tabs = [
     t('session.tabs.video'),
@@ -33,9 +56,10 @@ export default function DailySessionScreen({ route, navigation }) {
   async function handleTabChange(tabKey) {
     setActiveTab(tabKey);
     if (tabKey === 'Video') {
+      videoOpenRef.current += 1;
       await logEngagement({
         course_title: course.title,
-        week_number: course.weekNumber,
+        week_number: course.week_number || course.weekNumber,
         video_open_count: 1,
       });
     }
@@ -70,10 +94,20 @@ export default function DailySessionScreen({ route, navigation }) {
 
         <View style={styles.mediaArea}>
           {activeTab === 'Video' && (
-            <View style={styles.videoPlaceholder}>
-              <Text style={styles.playIcon}>▶</Text>
-              <Text style={styles.videoDuration}>00:00 / 18:00</Text>
-            </View>
+            course?.video_url ? (
+              <VideoView
+                style={styles.videoPlayer}
+                player={player}
+                allowsFullscreen
+                allowsPictureInPicture
+                nativeControls
+              />
+            ) : (
+              <View style={styles.videoPlaceholder}>
+                <Text style={styles.playIcon}>▶</Text>
+                <Text style={styles.videoDuration}>No video available</Text>
+              </View>
+            )
           )}
           {activeTab === 'Audio' && (
             <View style={styles.audioPlaceholder}>
@@ -154,6 +188,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  videoPlayer: {
+    height: 220,
+    borderRadius: 12,
+    backgroundColor: '#000',
   },
   playIcon: { fontSize: 40, color: Colors.white, marginBottom: 8 },
   videoDuration: { fontSize: 13, color: 'rgba(255,255,255,0.7)' },

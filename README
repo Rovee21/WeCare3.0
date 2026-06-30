@@ -63,7 +63,7 @@ Make sure you have these installed before starting:
 
 ## Running the Mobile App
 
-The mobile app runs entirely independently of the backend — it uses mock data until the backend is connected.
+The mobile app now connects to the real backend (no more mock auth/data). The backend must be running first — see [Running the Backend](#running-the-backend).
 
 **Step 1 — Install dependencies**
 
@@ -72,20 +72,36 @@ cd mobile
 npm install
 ```
 
-**Step 2 — Start the dev server**
+**Step 2 — Set your backend URL**
+
+Open `mobile/src/services/api.js` and set `BASE_URL` to your machine's local IP (not `localhost` — a physical phone can't reach your laptop's localhost):
+
+```js
+export const BASE_URL = __DEV__ ? 'http://YOUR_LOCAL_IP:8000/api' : 'https://your-production-domain.com/api';
+```
+
+Find your IP with `ipconfig` (Windows) or `ipconfig getifaddr en0` (Mac). This changes whenever you reconnect to Wi-Fi, so re-check it if requests start failing.
+
+**Step 3 — Start the dev server**
 ```bash
 npx expo start --clear
 ```
 
-**Step 3 — Open on your phone**
+**Step 4 — Open on your phone**
 
-Scan the QR code with the Expo Go app. Make sure your phone and computer are on the same Wi-Fi network.
+Scan the QR code with the Expo Go app. Phone and computer must be on the same Wi-Fi network.
 
 **What you should see:**
 - Enrollment screen on first launch (no token stored yet)
-- Enter any code → navigates to the home screen (mock auth)
+- Enter a real enrollment code generated from Django Admin → real token issued and stored in SecureStore
 - Bottom tab bar: Home | Courses | Journal | Settings
-- All text switches between English and Mandarin based on participant language (currently hardcoded to English in the mock)
+- Tapping into a course session plays real video (if `video_url` is set) and logs engagement to the backend
+- Journal tab opens the Voice Journal recorder → record → confirm → emotion/stress survey → uploads to backend
+
+**Windows only — firewall:** if the phone can't reach the backend, allow port 8000 (this does not persist across reboots, re-run after restarting):
+```powershell
+New-NetFirewallRule -DisplayName "Allow Port 8000" -Direction Inbound -Protocol TCP -LocalPort 8000 -Action Allow
+```
 
 ---
 
@@ -141,6 +157,22 @@ curl -X POST http://localhost:8000/api/enroll/ \
 ```
 
 A successful response returns a token, language, participant ID, and cohort data.
+
+**Resetting a participant for repeat testing**
+
+Enrollment codes are single-use. To re-test the full enrollment flow without going through Django Admin each time:
+```bash
+docker-compose exec web python manage.py reset_participant
+```
+This resets the first participant (clears `is_enrolled`, deletes their old token) and prints a fresh enrollment code.
+
+**Local media files (video/audio for course sessions)**
+
+For local dev, video and audio files can be served directly from Django instead of S3. Drop files into `backend/media/session_videos/` or `backend/media/session_audio/`, then set the session's `video_url` / `audio_url` field (in Django Admin or via shell) to:
+```
+http://YOUR_LOCAL_IP:8000/media/session_videos/your_file.mp4
+```
+Use your local IP, not `localhost`, so the phone can reach it. This only works locally — production uses S3 + CloudFront.
 
 ---
 
@@ -203,6 +235,8 @@ docker-compose logs web                                    # View Django logs
 | Mobile | React Native, Expo SDK 54, Expo Go for dev |
 | Navigation | React Navigation v7 (stack + bottom tabs) |
 | Internationalization | react-i18next (English + Mandarin) |
+| Audio recording | `expo-audio` (Voice Journal) |
+| Video playback | `expo-video` (course session video tab) |
 | Backend | Django 4.2, Django REST Framework |
 | Database | PostgreSQL (local via Docker, production via AWS RDS) |
 | Auth | DRF token auth (one-time enrollment code → permanent token) |
@@ -241,9 +275,23 @@ These three values drive all content routing.
 | Enrollment | One-time code entry; language auto-set from backend response |
 | Home | Today's session card + Go to Courses + Voice Journal |
 | Courses | Full session list grouped by week; search by title |
-| Daily Session | Video / Audio / Text tabs, resources, emoji feedback |
-| Voice Journal | Weekly audio recording with bilingual prompt |
+| Daily Session | Video / Audio / Text tabs (real video playback via `expo-video`), resources, emoji feedback, engagement tracking (time spent, video opens) |
+| Voice Journal | Audio recording (`expo-audio`) → confirm → emotion (7 options) + stress level (1–10) survey → uploads to backend |
 | Settings | Contact us, delete account |
+
+### Voice Journal Integration
+
+The Voice Journal was originally a standalone app — it is now merged directly into WECARE as a tab, not a separate app. Recordings upload via `POST /api/journal/direct-upload/` (multipart). Locally, audio is saved to `MEDIA_ROOT`; in production (once AWS credentials are set), the same endpoint will upload to S3 and trigger AWS Transcribe automatically — no frontend changes required for that upgrade.
+
+### Engagement Tracking
+
+`DailySessionScreen` logs engagement automatically:
+- Time spent on a session (via screen mount/unmount timer)
+- Video open count
+- Emoji reactions
+- Read/unread state (`mark_read`)
+
+All of this is visible per-participant in Django Admin under each participant's detail page (Engagement Log, Session Completions, Voice Journal Submissions sections).
 
 ### Django Admin (Research Team)
 

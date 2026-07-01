@@ -30,7 +30,35 @@ export default function HomeScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.greeting}>{greeting}</Text>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.greeting}>{greeting}</Text>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>
+              {profile?.participantId ? profile.participantId.slice(-2) : ''}
+            </Text>
+          </View>
+        </View>
+
+        {/* Today's session featured card */}
+        {todaysSession && (
+          <TouchableOpacity
+            style={styles.sessionCard}
+            onPress={() => navigation.navigate('Courses', {
+              screen: 'DailySession',
+              params: { course: todaysSession },
+            })}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.sessionLabel}>
+              {t('home.todaysSession')} · WEEK {todaysSession.week_number}
+            </Text>
+            <Text style={styles.sessionTitle}>{todaysSession.title}</Text>
+            <View style={styles.startButton}>
+              <Text style={styles.startButtonText}>{t('home.startSession')}</Text>
+            </View>
+          </TouchableOpacity>
+        )}
 
         {/* Courses card */}
         <TouchableOpacity
@@ -40,16 +68,10 @@ export default function HomeScreen({ navigation }) {
         >
           <View style={styles.cardBody}>
             <View style={styles.cardLeft}>
-              {todaysSession && (
-                <Text style={styles.weekLabel}>WEEK {todaysSession.week_number}</Text>
-              )}
               <Text style={styles.cardTitle}>{t('home.coursesCard')}</Text>
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>{t('home.coursesNotWatched', { n: 2 })}</Text>
               </View>
-              {todaysSession && (
-                <Text style={styles.cardSub}>{todaysSession.title}</Text>
-              )}
             </View>
             <IconCircle emoji="📚" />
           </View>
@@ -91,12 +113,57 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   scroll: { padding: 20, paddingTop: 12 },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
   greeting: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '700',
     color: Colors.textPrimary,
-    marginBottom: 24,
+    flex: 1,
   },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+  },
+  avatarText: { fontSize: 13, fontWeight: '600', color: Colors.textSecondary },
+  sessionCard: {
+    backgroundColor: Colors.primary,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 14,
+  },
+  sessionLabel: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  sessionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.white,
+    marginBottom: 16,
+  },
+  startButton: {
+    backgroundColor: Colors.accent,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    alignSelf: 'flex-start',
+  },
+  startButtonText: { color: Colors.white, fontWeight: '600', fontSize: 14 },
   card: {
     backgroundColor: Colors.white,
     borderRadius: 16,
@@ -114,13 +181,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   cardLeft: { flex: 1, paddingRight: 12 },
-  weekLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: Colors.textSecondary,
-    letterSpacing: 0.8,
-    marginBottom: 4,
-  },
   cardTitle: {
     fontSize: 22,
     fontWeight: '700',
@@ -133,7 +193,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 10,
     paddingVertical: 3,
-    marginBottom: 6,
   },
   badgeText: {
     fontSize: 12,

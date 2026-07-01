@@ -25,17 +25,21 @@ class VoiceJournalEntry(models.Model):
         (STATUS_FAILED, "Failed"),
     ]
 
-    EMOTION_CALM = "calm"
-    EMOTION_NEUTRAL = "neutral"
-    EMOTION_ANXIOUS = "anxious"
+    EMOTION_HAPPY = "happy"
     EMOTION_SAD = "sad"
-    EMOTION_OVERWHELMED = "overwhelmed"
+    EMOTION_ANGRY = "angry"
+    EMOTION_ANXIOUS = "anxious"
+    EMOTION_CALM = "calm"
+    EMOTION_EXCITED = "excited"
+    EMOTION_TIRED = "tired"
     EMOTION_CHOICES = [
-        (EMOTION_CALM, "Calm"),
-        (EMOTION_NEUTRAL, "Neutral"),
-        (EMOTION_ANXIOUS, "Anxious"),
+        (EMOTION_HAPPY, "Happy"),
         (EMOTION_SAD, "Sad"),
-        (EMOTION_OVERWHELMED, "Overwhelmed"),
+        (EMOTION_ANGRY, "Angry"),
+        (EMOTION_ANXIOUS, "Anxious"),
+        (EMOTION_CALM, "Calm"),
+        (EMOTION_EXCITED, "Excited"),
+        (EMOTION_TIRED, "Tired"),
     ]
 
     participant = models.ForeignKey(
@@ -43,6 +47,7 @@ class VoiceJournalEntry(models.Model):
     )
     week_number = models.PositiveSmallIntegerField()
     audio_s3_key = models.CharField(max_length=500, blank=True)
+    audio_file = models.FileField(upload_to='vj_recordings/', blank=True, null=True)
     recording_seconds = models.PositiveIntegerField(default=0)
     transcript = models.TextField(blank=True)
     vj_stress_level = models.PositiveSmallIntegerField(null=True, blank=True)
@@ -57,7 +62,7 @@ class VoiceJournalEntry(models.Model):
     class Meta:
         ordering = ["-submitted_at"]
         # One submission per participant per week
-        unique_together = ["participant", "week_number"]
+        # unique_together = ["participant", "week_number"]
 
     def __str__(self):
         return f"{self.participant} — Week {self.week_number} VJ"

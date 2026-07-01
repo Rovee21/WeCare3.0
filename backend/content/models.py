@@ -9,6 +9,8 @@ class Session(models.Model):
 
     video_url = models.URLField(blank=True)
     audio_url = models.URLField(blank=True)
+    video_file = models.FileField(upload_to='session_videos/', blank=True, null=True)
+    audio_file = models.FileField(upload_to='session_audio/', blank=True, null=True)
     text_content = models.TextField(blank=True)
     text_content_zh = models.TextField(blank=True)
 

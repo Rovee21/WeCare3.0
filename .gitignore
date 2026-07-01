@@ -28,3 +28,6 @@ credentials.json
 
 # Claude Code project instructions (internal, not for contributors)
 CLAUDE.md
+
+# Local media files (dev only — production uses S3)
+backend/media/

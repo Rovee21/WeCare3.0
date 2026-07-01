@@ -46,6 +46,11 @@ export default function SettingsScreen({ navigation }) {
           <View>
             <Text style={styles.profileName}>{profile?.label ?? '—'}</Text>
             <Text style={styles.profileId}>User ID: {profile?.participantId ?? '—'}</Text>
+            {profile?.weekNumber && (
+              <Text style={styles.profileMeta}>
+                Week {profile.weekNumber}{profile?.group ? ` · ${profile.group} group` : ''}
+              </Text>
+            )}
           </View>
         </View>
 
@@ -132,6 +137,7 @@ const styles = StyleSheet.create({
   avatarIcon: { fontSize: 22 },
   profileName: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary },
   profileId: { fontSize: 13, color: Colors.textSecondary, marginTop: 2 },
+  profileMeta: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
   sectionLabel: {
     fontSize: 11,
     fontWeight: '700',

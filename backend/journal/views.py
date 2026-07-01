@@ -1,7 +1,8 @@
 import uuid
 from django.conf import settings
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .models import VoiceJournalPrompt, VoiceJournalEntry
@@ -10,7 +11,6 @@ from .serializers import (
     VoiceJournalSubmitSerializer,
     VoiceJournalEntrySerializer,
 )
-
 
 def _get_participant(request):
     try:
@@ -89,11 +89,11 @@ def submit_entry(request):
 
     week = participant.current_week_number
 
-    if VoiceJournalEntry.objects.filter(participant=participant, week_number=week).exists():
-        return Response(
-            {"detail": "You have already submitted a Voice Journal for this week."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+    # if VoiceJournalEntry.objects.filter(participant=participant, week_number=week).exists():
+    #     return Response(
+    #         {"detail": "You have already submitted a Voice Journal for this week."},
+    #         status=status.HTTP_400_BAD_REQUEST,
+    #     )
 
     entry = VoiceJournalEntry.objects.create(
         participant=participant,
@@ -137,3 +137,46 @@ def _trigger_transcription(entry):
     except Exception:
         entry.transcription_status = VoiceJournalEntry.STATUS_FAILED
         entry.save(update_fields=["transcription_status"])
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])
+def direct_upload(request):
+    participant = _get_participant(request)
+    if not participant:
+        return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    week = participant.current_week_number
+
+    # if VoiceJournalEntry.objects.filter(participant=participant, week_number=week).exists():
+    #     return Response(
+    #         {"detail": "Already submitted for this week."},
+    #         status=status.HTTP_400_BAD_REQUEST,
+    #     )
+
+    audio_file = request.FILES.get("audio")
+    if not audio_file:
+        return Response({"detail": "No audio file provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+    recording_seconds = int(request.data.get("recording_seconds", 0))
+    emotion_label = request.data.get("emotion_label", "")
+    vj_stress_level = request.data.get("vj_stress_level")
+    if vj_stress_level:
+        vj_stress_level = int(vj_stress_level)
+
+    entry = VoiceJournalEntry.objects.create(
+        participant=participant,
+        week_number=week,
+        audio_s3_key="",
+        audio_file=audio_file,
+        recording_seconds=recording_seconds,
+        emotion_label=emotion_label,
+        vj_stress_level=vj_stress_level,
+    )
+
+    return Response({
+        "id": entry.id,
+        "week_number": entry.week_number,
+        "recording_seconds": entry.recording_seconds,
+        "submitted_at": entry.submitted_at,
+    }, status=status.HTTP_201_CREATED)

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SectionList } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, SectionList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { getAllSessions } from '../services/sessionService';
@@ -38,15 +38,21 @@ function CheckCircle({ isRead, isCurrent }) {
 export default function CoursesScreen({ navigation }) {
   const { t } = useTranslation();
   const [sessions, setSessions] = useState([]);
+  const [query, setQuery] = useState('');
 
   useEffect(() => { getAllSessions().then(setSessions); }, []);
-
-  const sections = useMemo(() => groupByWeek(sessions), [sessions]);
 
   const totalSessions = sessions.length;
   const completedSessions = sessions.filter(s => s.is_read || s.isRead).length;
   const remaining = totalSessions - completedSessions;
   const firstUnreadId = sessions.find(s => !(s.is_read || s.isRead))?.id;
+
+  const sections = useMemo(() => {
+    const filtered = query
+      ? sessions.filter(s => s.title.toLowerCase().includes(query.toLowerCase()))
+      : sessions;
+    return groupByWeek(filtered);
+  }, [sessions, query]);
 
   function renderItem({ item }) {
     const isRead = item.is_read || item.isRead;
@@ -101,6 +107,13 @@ export default function CoursesScreen({ navigation }) {
                 </View>
               </View>
             )}
+            <TextInput
+              style={styles.searchInput}
+              placeholder={t('courses.searchPlaceholder')}
+              placeholderTextColor={Colors.textSecondary}
+              value={query}
+              onChangeText={setQuery}
+            />
           </View>
         )}
         contentContainerStyle={styles.list}
@@ -134,7 +147,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderRadius: 12,
     padding: 16,
-    marginBottom: 8,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -162,6 +175,17 @@ const styles = StyleSheet.create({
     height: 4,
     backgroundColor: Colors.primary,
     borderRadius: 2,
+  },
+  searchInput: {
+    height: 44,
+    backgroundColor: Colors.white,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    fontSize: 15,
+    color: Colors.textPrimary,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: 4,
   },
   sectionHeader: {
     fontSize: 11,

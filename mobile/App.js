@@ -4,8 +4,9 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import RootNavigator from './src/navigation/RootNavigator';
+import { registerRootComponent } from 'expo';
 
-export default function App() {
+function App() {
   return (
     <SafeAreaProvider>
       <NavigationContainer>
@@ -14,3 +15,5 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
+registerRootComponent(App);

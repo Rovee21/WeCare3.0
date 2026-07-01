@@ -3,17 +3,49 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { logEngagement, markAsRead } from '../services/sessionService';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { Colors } from '../constants/colors';
 
 export default function DailySessionScreen({ route, navigation }) {
   const { t } = useTranslation();
   const { course } = route.params;
+  const [activeTab, setActiveTab] = useState('Video');
   const [commentsExpanded, setCommentsExpanded] = useState(false);
   const [liked, setLiked] = useState(false);
+  const startTimeRef = React.useRef(Date.now());
+  const videoOpenRef = React.useRef(0);
+
+  const player = useVideoPlayer(course?.video_url || '', p => { p.loop = false; });
 
   useEffect(() => {
     if (course?.id) markAsRead(course.id).catch(() => {});
+    startTimeRef.current = Date.now();
+
+    return () => {
+      const secondsSpent = Math.round((Date.now() - startTimeRef.current) / 1000);
+      if (secondsSpent > 3) {
+        logEngagement({
+          course_title: course?.title ?? '',
+          week_number: course?.week_number ?? course?.weekNumber ?? 1,
+          read_minutes: parseFloat((secondsSpent / 60).toFixed(2)),
+          read_count: 1,
+          video_open_count: videoOpenRef.current,
+        }).catch(() => {});
+      }
+    };
   }, [course?.id]);
+
+  async function handleTabChange(tabKey) {
+    setActiveTab(tabKey);
+    if (tabKey === 'Video') {
+      videoOpenRef.current += 1;
+      await logEngagement({
+        course_title: course.title,
+        week_number: course.week_number ?? course.weekNumber,
+        video_open_count: 1,
+      });
+    }
+  }
 
   async function handleLike() {
     setLiked(l => !l);
@@ -24,10 +56,19 @@ export default function DailySessionScreen({ route, navigation }) {
     });
   }
 
+  async function handleEmoji(emoji) {
+    await logEngagement({
+      course_title: course.title,
+      week_number: course.week_number ?? course.weekNumber,
+      interactive_feature_comment: 1,
+    });
+  }
+
   const weekNum = course?.week_number ?? course?.weekNumber ?? '—';
   const dayNum = course?.day_number ?? course?.dayNumber ?? '—';
   const mediaTypes = course?.media_types || course?.mediaTypes || [];
   const primaryType = mediaTypes[0] ?? 'Video';
+  const tabs = ['Video', 'Audio', 'Text'];
 
   return (
     <SafeAreaView style={styles.container}>
@@ -46,21 +87,62 @@ export default function DailySessionScreen({ route, navigation }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
-        {/* Video player */}
-        <View style={styles.videoPlayer}>
-          <TouchableOpacity style={styles.playButton}>
-            <Text style={styles.playIcon}>▶</Text>
-          </TouchableOpacity>
-          <View style={styles.durationBadge}>
-            <Text style={styles.durationText}>{course?.duration ?? '8:24'}</Text>
-          </View>
+        {/* Video meta */}
+        <Text style={styles.videoMeta}>
+          Week {weekNum} · {course?.duration ?? '—'} · {primaryType}
+        </Text>
+
+        {/* Tab bar */}
+        <View style={styles.tabBar}>
+          {tabs.map(key => (
+            <TouchableOpacity
+              key={key}
+              style={[styles.tab, activeTab === key && styles.tabActive]}
+              onPress={() => handleTabChange(key)}
+            >
+              <Text style={[styles.tabText, activeTab === key && styles.tabTextActive]}>
+                {t(`session.tabs.${key.toLowerCase()}`)}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
-        {/* Video meta */}
-        <Text style={styles.videoTitle}>{course?.title}</Text>
-        <Text style={styles.videoMeta}>
-          Week {weekNum} · {course?.duration ?? '8 min'} · {primaryType}
-        </Text>
+        {/* Media area */}
+        <View style={styles.mediaArea}>
+          {activeTab === 'Video' && (
+            course?.video_url ? (
+              <VideoView
+                style={styles.videoPlayer}
+                player={player}
+                allowsFullscreen
+                allowsPictureInPicture
+                nativeControls
+              />
+            ) : (
+              <View style={styles.videoPlaceholder}>
+                <TouchableOpacity style={styles.playButton}>
+                  <Text style={styles.playIcon}>▶</Text>
+                </TouchableOpacity>
+                <View style={styles.durationBadge}>
+                  <Text style={styles.durationText}>{course?.duration ?? '—'}</Text>
+                </View>
+              </View>
+            )
+          )}
+          {activeTab === 'Audio' && (
+            <View style={styles.audioPlaceholder}>
+              <Text style={styles.audioIcon}>🎧</Text>
+              <Text style={styles.placeholderLabel}>Audio coming soon</Text>
+            </View>
+          )}
+          {activeTab === 'Text' && (
+            <View style={styles.textContent}>
+              <Text style={styles.textBody}>
+                {course?.text_content ?? course?.textContent ?? ''}
+              </Text>
+            </View>
+          )}
+        </View>
 
         {/* Reactions */}
         <View style={styles.reactionsRow}>
@@ -73,13 +155,6 @@ export default function DailySessionScreen({ route, navigation }) {
             <Text style={styles.reactionCount}>0</Text>
           </TouchableOpacity>
         </View>
-
-        {/* Text content */}
-        {(course?.text_content || course?.textContent) ? (
-          <Text style={styles.textBody}>
-            {course?.text_content ?? course?.textContent}
-          </Text>
-        ) : null}
 
         {/* Additional resources */}
         {course?.resources?.length > 0 && (
@@ -115,6 +190,15 @@ export default function DailySessionScreen({ route, navigation }) {
           <Text style={styles.commentsChevron}>{commentsExpanded ? '∧' : '∨'}</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Emoji feedback bar */}
+      <View style={styles.bottomBar}>
+        {['😊', '😐', '😢'].map(emoji => (
+          <TouchableOpacity key={emoji} onPress={() => handleEmoji(emoji)} style={styles.emojiButton}>
+            <Text style={styles.emoji}>{emoji}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
     </SafeAreaView>
   );
 }
@@ -144,14 +228,37 @@ const styles = StyleSheet.create({
   },
   overflowButton: { padding: 4 },
   overflow: { fontSize: 18, color: Colors.textSecondary, letterSpacing: 2 },
-  scroll: { paddingHorizontal: 16, paddingBottom: 32 },
-  videoPlayer: {
+  scroll: { paddingHorizontal: 16, paddingBottom: 16 },
+  videoMeta: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginBottom: 12,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: Colors.white,
+    borderRadius: 10,
+    padding: 4,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  tab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 8 },
+  tabActive: { backgroundColor: Colors.primary },
+  tabText: { fontSize: 14, color: Colors.textSecondary, fontWeight: '500' },
+  tabTextActive: { color: Colors.white, fontWeight: '600' },
+  mediaArea: { marginBottom: 16 },
+  videoPlaceholder: {
     height: 200,
     backgroundColor: '#C0C0C0',
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+  },
+  videoPlayer: {
+    height: 220,
+    borderRadius: 12,
+    backgroundColor: '#000',
   },
   playButton: {
     width: 52,
@@ -172,16 +279,22 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   durationText: { color: Colors.white, fontSize: 11, fontWeight: '600' },
-  videoTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    marginBottom: 4,
+  audioPlaceholder: {
+    height: 120,
+    backgroundColor: Colors.white,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  videoMeta: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginBottom: 16,
+  audioIcon: { fontSize: 36, marginBottom: 8 },
+  placeholderLabel: { fontSize: 14, color: Colors.textSecondary },
+  textContent: { paddingVertical: 4 },
+  textBody: {
+    fontSize: 15,
+    color: Colors.textPrimary,
+    lineHeight: 24,
   },
   reactionsRow: {
     flexDirection: 'row',
@@ -204,12 +317,6 @@ const styles = StyleSheet.create({
   },
   reactionIcon: { fontSize: 16 },
   reactionCount: { fontSize: 14, fontWeight: '600', color: Colors.textPrimary },
-  textBody: {
-    fontSize: 15,
-    color: Colors.textPrimary,
-    lineHeight: 24,
-    marginBottom: 24,
-  },
   resourcesSection: { marginBottom: 8 },
   resourcesLabel: {
     fontSize: 10,
@@ -256,4 +363,16 @@ const styles = StyleSheet.create({
   },
   commentsTitle: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary },
   commentsChevron: { fontSize: 14, color: Colors.textSecondary },
+  bottomBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 20,
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    backgroundColor: Colors.white,
+  },
+  emojiButton: { padding: 6 },
+  emoji: { fontSize: 28 },
 });

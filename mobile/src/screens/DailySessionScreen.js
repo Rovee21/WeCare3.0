@@ -17,6 +17,9 @@ export default function DailySessionScreen({ route, navigation }) {
 
   const player = useVideoPlayer(course?.video_url || '', p => { p.loop = false; });
 
+  // TODO: `course` comes straight from the typed API client now, which is consistently
+  // snake_case (see README > API Contract & Codegen). The `?? course.xxxCamelCase` fallbacks
+  // in this file (here and below) are dead code from before that fix and can be removed.
   useEffect(() => {
     if (course?.id) markAsRead(course.id).catch(() => {});
     startTimeRef.current = Date.now();

@@ -4,6 +4,7 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.shortcuts import redirect as _redirect
 from django.urls import path, include, reverse as _reverse
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 admin.site.site_header = "WeCare Research Admin"
 admin.site.site_title = "WeCare Admin"
@@ -17,6 +18,8 @@ admin.site.index = types.MethodType(_admin_index, admin.site)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+    path("api/schema/swagger-ui/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
     path("api/", include("participants.urls")),
     path("api/", include("content.urls")),
     path("api/", include("journal.urls")),

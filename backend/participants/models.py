@@ -77,11 +77,11 @@ class Participant(models.Model):
         return self.participant_id
 
     @property
-    def participant_id(self):
+    def participant_id(self) -> str:
         return f"P{self.pk:05d}"
 
     @property
-    def current_week_number(self):
+    def current_week_number(self) -> int:
         if not self.enrolled_at:
             return 1
         days_since = (timezone.now() - self.enrolled_at).days

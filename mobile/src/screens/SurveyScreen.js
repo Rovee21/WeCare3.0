@@ -60,6 +60,7 @@ export default function SurveyScreen({ navigation, route }) {
         <Text style={styles.thankYouText}>Your recording has been saved.</Text>
         <Text style={styles.thankYouSubtext}>Have a wonderful day!</Text>
         <TouchableOpacity
+          testID="survey-home-button"
           style={styles.homeButton}
           onPress={() => navigation.navigate('MainTabs')}
         >
@@ -77,6 +78,7 @@ export default function SurveyScreen({ navigation, route }) {
           {emotions.map(emotion => (
             <TouchableOpacity
               key={emotion.label}
+              testID={`survey-emotion-${emotion.label.toLowerCase()}`}
               style={[
                 styles.emotionButton,
                 { backgroundColor: emotion.color },
@@ -96,6 +98,7 @@ export default function SurveyScreen({ navigation, route }) {
           {stressLevels.map(level => (
             <TouchableOpacity
               key={level}
+              testID={`survey-stress-${level}`}
               style={[styles.stressButton, stressLevel === level && styles.stressButtonSelected]}
               onPress={() => setStressLevel(level)}
             >
@@ -110,6 +113,7 @@ export default function SurveyScreen({ navigation, route }) {
       {selectedEmotion && stressLevel !== null && (
         <View style={styles.footer}>
           <TouchableOpacity
+            testID="survey-confirm-button"
             style={[styles.confirmButton, submitting && styles.confirmButtonDisabled]}
             onPress={handleConfirm}
             disabled={submitting}

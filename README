@@ -12,9 +12,11 @@ A bilingual (English + Mandarin) mobile app delivering a structured 7-week careg
 4. [Running the Backend](#running-the-backend)
 5. [Environment Variables](#environment-variables)
 6. [Key Commands](#key-commands)
-7. [API Contract & Codegen](#api-contract--codegen)
-8. [Tech Stack](#tech-stack)
-9. [App Overview](#app-overview)
+7. [E2E Testing](#e2e-testing)
+8. [API Contract & Codegen](#api-contract--codegen)
+9. [Pre-commit Hooks](#pre-commit-hooks)
+10. [Tech Stack](#tech-stack)
+11. [App Overview](#app-overview)
 
 ---
 
@@ -186,7 +188,7 @@ Use your local IP, not `localhost`, so the phone can reach it. This only works l
 
 ### Mobile app
 
-The mobile app has no `.env` file yet — the API base URL is set in `mobile/src/services/api.js`. When connecting to the real backend, update `BASE_URL` there.
+Copy `mobile/.env.example` to `mobile/.env` to override the API base URL (`EXPO_PUBLIC_API_URL`). It defaults to `http://localhost:8000`, which works for the iOS Simulator against `docker-compose up` in `backend/`. Physical devices need your machine's LAN IP; the Android emulator needs `http://10.0.2.2:8000`. See `mobile/src/services/api.js`.
 
 ### Backend (`backend/.env`)
 
@@ -235,6 +237,37 @@ docker-compose logs web                                    # View Django logs
 
 ---
 
+## E2E Testing
+
+`e2e/run.sh` drives the real app (iOS Simulator, via Expo Go) against the real Dockerized backend using [Maestro](https://maestro.mobile.dev). No mocking — it exercises actual network calls, the actual database, and actual audio recording.
+
+**One-time setup:**
+```bash
+brew tap mobile-dev-inc/tap
+brew install mobile-dev-inc/tap/maestro
+```
+(Plain `brew install maestro` installs an unrelated app of the same name — use the tap above.)
+
+Maestro runs on the JVM, so it needs a Java runtime on the host. Most Macs don't have one by default — if `maestro --version` fails with something like `Unable to locate a Java Runtime`, install one:
+```bash
+brew install openjdk
+```
+(Follow the symlink instructions `brew` prints after install, so `java` is on your `PATH`.)
+
+The iOS Simulator also needs microphone access for the voice-journal flow: macOS System Settings → Privacy & Security → Microphone → enable **Simulator**. This is a one-time host-level grant that can't be scripted.
+
+**Running:**
+```bash
+open -a Simulator                # boot a simulator first if none is running
+npm run e2e:ios --prefix mobile  # or: e2e/run.sh
+```
+
+The script starts `backend/docker-compose`, waits for it to respond, resets the test participant (`reset_participant`) to get a fresh single-use enrollment code, deep-links Expo Go to whatever Metro dev server is running (reusing one you already have open, or starting one), and runs every flow in `e2e/flows/`. Each flow gets its own fresh reset + code, since enrollment codes are single-use and the app has no "already enrolled" bootstrap check (it always starts at the Enrollment screen).
+
+Flows are plain Maestro YAML (`e2e/flows/*.yaml`), targeting `testID`s added to the relevant screens. Add new flows by dropping another `.yaml` file in that directory.
+
+---
+
 ## API Contract & Codegen
 
 The backend's API is documented as an OpenAPI 3 schema via [drf-spectacular](https://drf-spectacular.readthedocs.io/), and the mobile app's API client is generated from that schema instead of being hand-written — this is the source of truth for what the backend actually returns, so the two sides can't drift out of sync.
@@ -254,6 +287,28 @@ This runs entirely in Docker (a `manage.py spectacular` call inside the `web` co
 - The wire format is **snake_case** end-to-end (matches Django/DRF convention) — the mobile services no longer do manual `snake_case → camelCase` remapping.
 - Function-based `@api_view` views (all of them, in this codebase) don't get automatic schema inference from drf-spectacular the way class-based generic views/viewsets do — every view has an explicit `@extend_schema(request=..., responses=...)` annotation. Keep this in mind when adding a new endpoint: without the annotation, it'll show up in the schema with an empty body.
 - One deliberate exception: `journalService.directUpload()` (multipart audio upload) bypasses the typed client and calls `fetch` directly. OpenAPI has no distinct binary-file type for multipart fields, so drf-spectacular represents Django's `FileField` as a `string`, which isn't usable for an actual file upload — forcing it through the typed client would fight the type system for no benefit.
+
+---
+
+## Pre-commit Hooks
+
+This repo uses [pre-commit](https://pre-commit.com) to run repo-local checks before each commit. Right now there's one hook, `api-codegen-freshness` (see `.pre-commit-config.yaml`): whenever a commit touches backend Python code or the generated API files, it re-runs `scripts/generate-api.sh` and blocks the commit if that produces a diff — this is what actually enforces the [API Contract & Codegen](#api-contract--codegen) rule that `backend/generated/openapi-schema.yaml` and `mobile/src/generated/schema.d.ts` stay in sync with the backend code.
+
+**One-time setup (Mac):**
+```bash
+brew install pre-commit
+```
+Then, from the repo root, install the git hook so it actually runs on `git commit`:
+```bash
+pre-commit install
+```
+
+The `api-codegen-freshness` hook shells out to `scripts/generate-api.sh`, which runs against the backend Docker containers — start those first (`cd backend && docker-compose up -d`) or commits touching backend/generated code will fail with a "container isn't running" error rather than a real codegen diff.
+
+To run all hooks on demand without committing (e.g. to check before pushing):
+```bash
+pre-commit run --all-files
+```
 
 ---
 

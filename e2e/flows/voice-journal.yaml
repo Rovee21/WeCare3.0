@@ -1,0 +1,50 @@
+# Golden path: enroll -> record a voice journal entry -> answer the survey ->
+# confirm the real Django backend accepted the multipart upload.
+# e2e/run.sh deep-links Expo Go to the dev server before this flow starts.
+appId: host.exp.Exponent
+---
+- extendedWaitUntil:
+    visible:
+      text: "Create account"
+    timeout: 30000
+- tapOn:
+    id: "enrollment-code-input"
+- inputText: "${ENROLLMENT_CODE}"
+- pressKey: Enter # dismiss the keyboard — it otherwise covers the submit button (no KeyboardAvoidingView on this screen)
+- tapOn:
+    id: "enrollment-submit-button"
+- assertVisible:
+    id: "home-voice-journal-card"
+
+- tapOn:
+    id: "home-voice-journal-card"
+- assertVisible:
+    id: "voice-journal-record-button"
+- tapOn:
+    id: "voice-journal-record-button"
+- extendedWaitUntil: # first CoreAudio session start on the Simulator can take a while.
+    # Maestro's `text` selector is a full-match regex, and the real accessibility label
+    # merges the button's icon + multi-line text ("🎙️, RECORDING...\nTAP TO STOP") — the
+    # (?s) DOTALL flag is needed so `.` spans the embedded newline.
+    visible:
+      text: "(?s).*RECORDING.*"
+    timeout: 20000
+- tapOn:
+    id: "voice-journal-record-button"
+- assertVisible:
+    id: "voice-journal-submit-button"
+- tapOn:
+    id: "voice-journal-submit-button"
+
+- assertVisible:
+    text: "How were you feeling\\?" # `text` is a full-match regex — the real text ends in a literal "?"
+- tapOn:
+    id: "survey-emotion-calm"
+- tapOn:
+    id: "survey-stress-3"
+- tapOn:
+    id: "survey-confirm-button"
+- extendedWaitUntil:
+    visible:
+      text: "All done!"
+    timeout: 15000

@@ -34,6 +34,7 @@ export default function EnrollmentScreen({ navigation }) {
 
           <Text style={styles.inputLabel}>{t('enrollment.userIdLabel')}</Text>
           <TextInput
+            testID="enrollment-code-input"
             style={styles.input}
             placeholder={t('enrollment.codePlaceholder')}
             placeholderTextColor={Colors.textSecondary}
@@ -44,6 +45,7 @@ export default function EnrollmentScreen({ navigation }) {
           />
 
           <TouchableOpacity
+            testID="enrollment-submit-button"
             style={[styles.button, loading && styles.buttonDisabled]}
             onPress={handleEnroll}
             disabled={loading}

@@ -8,7 +8,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "generate:api": "openapi-typescript ../backend/generated/openapi-schema.yaml -o src/generated/schema.d.ts"
+    "generate:api": "openapi-typescript ../backend/generated/openapi-schema.yaml -o src/generated/schema.d.ts",
+    "e2e:ios": "../e2e/run.sh"
   },
   "dependencies": {
     "@expo/metro-config": "^54.0.16",

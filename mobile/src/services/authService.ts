@@ -16,6 +16,11 @@ export type StoredProfile = {
 };
 
 export async function enrollWithCode(code: string): Promise<StoredProfile> {
+  // Clear any stale token before enrolling: apiClient's authMiddleware attaches whatever
+  // token is cached, and a token invalidated server-side (e.g. by reset_participant) makes
+  // DRF's TokenAuthentication reject the request with 401 before the view is even reached —
+  // permanently blocking re-enrollment until the app's data is wiped.
+  await SecureStore.deleteItemAsync(TOKEN_KEY);
   const data = unwrap(
     await apiClient.POST('/api/enroll/', {
       body: { code: code.trim().toUpperCase() },

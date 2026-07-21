@@ -61,7 +61,7 @@ export default function SurveyScreen({ navigation, route }) {
         <Text style={styles.thankYouSubtext}>Have a wonderful day!</Text>
         <TouchableOpacity
           style={styles.homeButton}
-          onPress={() => navigation.navigate('MainTabs')}
+          onPress={() => navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] })}
         >
           <Text style={styles.homeButtonText}>Go to Home</Text>
         </TouchableOpacity>

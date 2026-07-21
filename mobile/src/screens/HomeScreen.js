@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { getTodaysSession } from '../services/sessionService';
+import { getTodaysSession, getAllSessions } from '../services/sessionService';
 import { getStoredProfile } from '../services/authService';
 import { Colors } from '../constants/colors';
 
@@ -18,11 +19,22 @@ export default function HomeScreen({ navigation }) {
   const { t } = useTranslation();
   const [todaysSession, setTodaysSession] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  useEffect(() => {
-    getTodaysSession().then(setTodaysSession);
-    getStoredProfile().then(setProfile);
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      getTodaysSession().then(s => {
+        console.log('todaysSession:', JSON.stringify(s));
+        setTodaysSession(s);
+      });
+      getStoredProfile().then(setProfile);
+      getAllSessions().then(sessions => {
+        console.log('allSessions count:', sessions.length);
+        const unread = sessions.filter(s => !s.is_read).length;
+        setUnreadCount(unread);
+      });
+    }, [])
+  );
 
   const name = profile?.label ?? '';
   const greeting = `${t('home.greeting')}${name ? ' ' + name : ''}`;
@@ -69,9 +81,13 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.cardBody}>
             <View style={styles.cardLeft}>
               <Text style={styles.cardTitle}>{t('home.coursesCard')}</Text>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{t('home.coursesNotWatched', { n: 2 })}</Text>
-              </View>
+                {unreadCount > 0 ? (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{t('home.coursesNotWatched', { n: unreadCount })}</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.cardSub}>{t('home.coursesAllDone')}</Text>
+                )}
             </View>
             <IconCircle emoji="📚" />
           </View>

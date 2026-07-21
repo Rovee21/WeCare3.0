@@ -1,0 +1,11 @@
+{% extends "admin/change_form.html" %}
+{% block object-tools-items %}
+  {{ block.super }}
+  {% if original %}
+  <li>
+    <a href="{{ stats_url }}" class="historylink" style="background:#1F6B9A;color:#fff;padding:6px 14px;border-radius:4px;text-decoration:none;font-size:13px;">
+      📊 View Stats
+    </a>
+  </li>
+  {% endif %}
+{% endblock %}

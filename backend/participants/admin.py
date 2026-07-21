@@ -1,3 +1,5 @@
+from django.template.response import TemplateResponse
+from django.urls import path
 from django.contrib import admin
 from django.core.mail import send_mail
 from django.utils.html import format_html
@@ -30,32 +32,42 @@ class EngagementLogInline(admin.TabularInline):
     can_delete = False
     fields = [
         "week_number", "course_title",
-        "video_watch_display", "video_open_count",
-        "read_time_display", "read_count",
-        "emoji_taps_display", "logged_at",
+        "total_time_display",
+        "video_time_display", "audio_time_display", "text_time_display",
+        "video_open_count", "emoji_taps_display", "logged_at",
     ]
     readonly_fields = [
         "week_number", "course_title",
-        "video_watch_display", "video_open_count",
-        "read_time_display", "read_count",
-        "emoji_taps_display", "logged_at",
+        "total_time_display",
+        "video_time_display", "audio_time_display", "text_time_display",
+        "video_open_count", "emoji_taps_display", "logged_at",
     ]
     ordering = ["-logged_at"]
     verbose_name = "Engagement Event"
     verbose_name_plural = "Engagement Log"
 
-    def video_watch_display(self, obj):
-        if not obj.video_last_time:
+    def _fmt(self, seconds):
+        if not seconds:
             return "—"
-        m, s = divmod(obj.video_last_time, 60)
+        m, s = divmod(seconds, 60)
         return f"{m}:{s:02d}"
-    video_watch_display.short_description = "Watch Time"
 
-    def read_time_display(self, obj):
-        if not obj.read_minutes:
-            return "—"
-        return f"{obj.read_minutes:.1f} min"
-    read_time_display.short_description = "Read Time"
+    def total_time_display(self, obj):
+        total = obj.video_time_seconds + obj.audio_time_seconds + obj.text_time_seconds
+        return self._fmt(total)
+    total_time_display.short_description = "Total Time"
+
+    def video_time_display(self, obj):
+        return self._fmt(obj.video_time_seconds)
+    video_time_display.short_description = "Video Time"
+
+    def audio_time_display(self, obj):
+        return self._fmt(obj.audio_time_seconds)
+    audio_time_display.short_description = "Audio Time"
+
+    def text_time_display(self, obj):
+        return self._fmt(obj.text_time_seconds)
+    text_time_display.short_description = "Text Time"
 
     def emoji_taps_display(self, obj):
         return obj.interactive_feature_count or "—"
@@ -142,9 +154,77 @@ class ParticipantAdmin(admin.ModelAdmin):
 
     actions = ["generate_code_only", "generate_and_email_code"]
 
-    def change_view(self, request, object_id, form_url="", extra_context=None):
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path('<int:participant_id>/stats/', self.admin_site.admin_view(self.stats_view), name='participant_stats'),
+        ]
+        return custom + urls
+
+    def stats_view(self, request, participant_id):
+        from content.models import EngagementLog, ParticipantSession
+        from journal.models import VoiceJournalEntry
+        from django.db.models import Sum
+
+        participant = Participant.objects.get(pk=participant_id)
+
+        raw_logs = EngagementLog.objects.filter(participant=participant).select_related('session').order_by('week_number', 'session__day_number')
+
+        totals = raw_logs.aggregate(
+            total_video=Sum('video_time_seconds'),
+            total_audio=Sum('audio_time_seconds'),
+            total_text=Sum('text_time_seconds'),
+        )
+
+        engagement_logs = []
+        for log in raw_logs:
+            total = log.video_time_seconds + log.audio_time_seconds + log.text_time_seconds
+            m, s = divmod(total, 60)
+            log.total_time_display = f"{m}:{s:02d}" if total else "—"
+            m, s = divmod(log.video_time_seconds, 60)
+            log.video_time_display = f"{m}:{s:02d}" if log.video_time_seconds else "—"
+            m, s = divmod(log.audio_time_seconds, 60)
+            log.audio_time_display = f"{m}:{s:02d}" if log.audio_time_seconds else "—"
+            m, s = divmod(log.text_time_seconds, 60)
+            log.text_time_display = f"{m}:{s:02d}" if log.text_time_seconds else "—"
+            engagement_logs.append(log)
+        session_completions = ParticipantSession.objects.filter(participant=participant).select_related('session').order_by('session__week_number', 'session__day_number')
+        vj_entries = VoiceJournalEntry.objects.filter(participant=participant).order_by('week_number')
+
+        def fmt(seconds):
+            if not seconds:
+                return '—'
+            m, s = divmod(seconds, 60)
+            return f'{m}:{s:02d}'
+
+        total_seconds = (totals['total_video'] or 0) + (totals['total_audio'] or 0) + (totals['total_text'] or 0)
+
+        context = {
+            **self.admin_site.each_context(request),
+            'participant': participant,
+            'engagement_logs': engagement_logs,
+            'session_completions': session_completions,
+            'vj_entries': vj_entries,
+            'summary': {
+                'sessions_read': session_completions.filter(is_read=True).count(),
+                'total_time': fmt(total_seconds),
+                'total_video_time': fmt(totals['total_video'] or 0),
+                'total_audio_time': fmt(totals['total_audio'] or 0),
+                'total_text_time': fmt(totals['total_text'] or 0),
+                'vj_submitted': vj_entries.count(),
+                'latest_stress': vj_entries.last().vj_stress_level if vj_entries.exists() else '—',
+                'latest_emotion': vj_entries.last().get_emotion_label_display() if vj_entries.exists() else '—',
+                'last_active': raw_logs.order_by('-logged_at').first().logged_at if raw_logs.exists() else None,
+            },
+            'fmt': fmt,
+            'title': f'{participant.participant_id} — Stats',
+        }
+        return TemplateResponse(request, 'admin/participant_stats.html', context)
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
         extra_context = extra_context or {}
-        extra_context["show_history"] = False
+        extra_context['show_history'] = False
+        extra_context['stats_url'] = f'/admin/participants/participant/{object_id}/stats/'
         return super().change_view(request, object_id, form_url, extra_context)
 
     def get_queryset(self, request):

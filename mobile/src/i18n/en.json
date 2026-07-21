@@ -9,10 +9,13 @@
   },
   "home": {
     "greeting": "Good Morning,",
+    "todaysSession": "Today's Session",
+    "startSession": "Go to Session",
     "coursesCard": "Courses",
     "coursesNotWatched": "{{n}} courses not watched yet",
+    "coursesAllDone": "All caught up!",
     "voiceJournal": "Voice Journal",
-    "lastEntry": "Your Last Entry: Yesterday",
+    "lastEntry": "Tap to record this week's entry",
     "contactUs": "Contact Us"
   },
   "courses": {

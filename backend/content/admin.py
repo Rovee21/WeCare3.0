@@ -79,9 +79,8 @@ class SessionAdmin(admin.ModelAdmin):
 class EngagementLogAdmin(admin.ModelAdmin):
     list_display = [
         "participant_label", "course_title", "week_number",
-        "video_watch_time", "video_open_count",
-        "read_time", "read_count",
-        "emoji_taps", "logged_at",
+        "total_time", "video_time", "audio_time", "text_time",
+        "video_open_count", "emoji_taps", "logged_at",
     ]
     list_filter = ["week_number", "logged_at"]
     search_fields = ["participant__email", "course_title"]
@@ -98,29 +97,35 @@ class EngagementLogAdmin(admin.ModelAdmin):
     def participant_label(self, obj):
         return obj.participant.participant_id if obj.participant else "—"
     participant_label.short_description = "Participant"
-    participant_label.admin_order_field = "participant__email"
 
-    def video_watch_time(self, obj):
-        if not obj.video_last_time:
+    def _fmt_time(self, seconds):
+        if not seconds:
             return format_html('<span style="color:#999;">—</span>')
-        m, s = divmod(obj.video_last_time, 60)
+        m, s = divmod(seconds, 60)
         return f"{m}:{s:02d}"
-    video_watch_time.short_description = "Watch Time"
-    video_watch_time.admin_order_field = "video_last_time"
 
-    def read_time(self, obj):
-        if not obj.read_minutes:
-            return format_html('<span style="color:#999;">—</span>')
-        return f"{obj.read_minutes:.1f} min"
-    read_time.short_description = "Read Time"
-    read_time.admin_order_field = "read_minutes"
+    def total_time(self, obj):
+        total = obj.video_time_seconds + obj.audio_time_seconds + obj.text_time_seconds
+        return self._fmt_time(total)
+    total_time.short_description = "Total Time"
+
+    def video_time(self, obj):
+        return self._fmt_time(obj.video_time_seconds)
+    video_time.short_description = "Video Time"
+
+    def audio_time(self, obj):
+        return self._fmt_time(obj.audio_time_seconds)
+    audio_time.short_description = "Audio Time"
+
+    def text_time(self, obj):
+        return self._fmt_time(obj.text_time_seconds)
+    text_time.short_description = "Text Time"
 
     def emoji_taps(self, obj):
         if not obj.interactive_feature_count:
             return format_html('<span style="color:#999;">—</span>')
         return obj.interactive_feature_count
     emoji_taps.short_description = "Emoji Taps"
-    emoji_taps.admin_order_field = "interactive_feature_count"
 
 
 @admin.register(NotificationLog)

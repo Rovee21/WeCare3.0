@@ -4,9 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { getStoredProfile, deleteAccount } from '../services/authService';
 import { Colors } from '../constants/colors';
+import * as SecureStore from 'expo-secure-store';
 
 export default function SettingsScreen({ navigation }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [profile, setProfile] = useState(null);
   const [dailyReminders, setDailyReminders] = useState(true);
   const [largerText, setLargerText] = useState(false);
@@ -57,18 +58,28 @@ export default function SettingsScreen({ navigation }) {
         {/* Language section */}
         <Text style={styles.sectionLabel}>{t('settings.language').toUpperCase()}</Text>
         <View style={styles.settingsCard}>
-          <View style={styles.row}>
-            <Text style={styles.rowLabel}>{t('settings.languageEnglish')}</Text>
-            <View style={[styles.radioCircle, currentLanguage === 'en' && styles.radioCircleSelected]}>
-              {currentLanguage === 'en' && <Text style={styles.radioCheck}>✓</Text>}
-            </View>
-          </View>
-          <View style={[styles.row, styles.rowLast]}>
-            <Text style={styles.rowLabel}>{t('settings.languageChinese')}  Chinese</Text>
-            <View style={[styles.radioCircle, currentLanguage === 'zh' && styles.radioCircleSelected]}>
-              {currentLanguage === 'zh' && <Text style={styles.radioCheck}>✓</Text>}
-            </View>
-          </View>
+          {[
+            { code: 'en', label: t('settings.languageEnglish') },
+            { code: 'zh', label: `中文  Chinese` },
+          ].map((lang, idx, arr) => (
+            <TouchableOpacity
+              key={lang.code}
+              style={[styles.row, idx === arr.length - 1 && styles.rowLast]}
+              onPress={async () => {
+                await i18n.changeLanguage(lang.code);
+                if (profile) {
+                  const updated = { ...profile, language: lang.code };
+                  await SecureStore.setItemAsync('wecare_user_profile', JSON.stringify(updated));
+                  setProfile(updated);
+                }
+              }}
+            >
+              <Text style={styles.rowLabel}>{lang.label}</Text>
+              <View style={[styles.radioCircle, currentLanguage === lang.code && styles.radioCircleSelected]}>
+                {currentLanguage === lang.code && <Text style={styles.radioCheck}>✓</Text>}
+              </View>
+            </TouchableOpacity>
+          ))}
         </View>
 
         {/* Preferences section */}

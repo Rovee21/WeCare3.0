@@ -89,6 +89,9 @@ class EngagementLog(models.Model):
 
     video_open_count = models.PositiveIntegerField(default=0)
     video_last_time = models.PositiveIntegerField(default=0)       # seconds watched
+    video_time_seconds = models.PositiveIntegerField(default=0)
+    audio_time_seconds = models.PositiveIntegerField(default=0)
+    text_time_seconds = models.PositiveIntegerField(default=0)
     read_count = models.PositiveIntegerField(default=0)
     read_minutes = models.FloatField(default=0.0)
     interactive_feature_count = models.PositiveIntegerField(default=0)   # emoji taps
@@ -99,9 +102,13 @@ class EngagementLog(models.Model):
     push_up = models.CharField(max_length=200, blank=True)
 
     logged_at = models.DateTimeField(auto_now_add=True)
+    @property
+    def total_time_seconds(self):
+        return self.video_time_seconds + self.audio_time_seconds + self.text_time_seconds
 
     class Meta:
         ordering = ["-logged_at"]
+        unique_together = ["participant", "session"]
 
     def __str__(self):
         return f"{self.participant} engagement @ {self.logged_at:%Y-%m-%d %H:%M}"

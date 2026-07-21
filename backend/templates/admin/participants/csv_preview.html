@@ -1,0 +1,66 @@
+{% extends "admin/base_site.html" %}
+{% load dict_filters %}
+{% block content %}
+<style>
+  .preview-page { max-width: 900px; margin: 0 auto; }
+  .back-btn { display: inline-block; margin-bottom: 20px; padding: 8px 16px; background: #1F6B9A; color: #fff; border-radius: 6px; text-decoration: none; font-size: 13px; }
+  .map-card { background: #1a2a3a; border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+  .map-card h2 { color: #7fb3d3; font-size: 18px; margin: 0 0 6px 0; }
+  .map-card p { color: #aaa; font-size: 13px; margin: 0 0 20px 0; }
+  .map-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .map-row label { display: block; color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .map-row select { width: 100%; padding: 8px 12px; background: #243447; border: 1px solid #2E86C1; border-radius: 6px; color: #fff; font-size: 13px; }
+  .preview-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; background: #1a2a3a; border-radius: 8px; overflow: hidden; font-size: 12px; }
+  .preview-table th { background: #1F6B9A; color: #fff; padding: 8px 12px; text-align: left; }
+  .preview-table td { padding: 8px 12px; color: #ccc; border-bottom: 1px solid #243447; }
+  .import-btn { background: #1e8449; color: #fff; border: none; padding: 14px 32px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; width: 100%; }
+  .import-btn:hover { background: #27ae60; }
+  .badge { background: #243447; color: #7fb3d3; padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+</style>
+
+<div class="preview-page">
+  <a class="back-btn" href="/admin/participants/participant/import-csv/">← Back to Upload</a>
+
+  <div class="map-card">
+    <h2>Map CSV Columns to Participant Fields</h2>
+    <p>Your CSV has {{ headers|length }} columns. Match each field below — leave as "— skip —" to ignore that field.</p>
+
+    <form method="post">
+      {% csrf_token %}
+      <!-- <input type="hidden" name="csv_data" value="{{ csv_data }}"> -->
+      <input type="hidden" name="import" value="1">
+
+      <div class="map-grid">
+        {% for field_key, field_label in field_map.items %}
+        <div class="map-row">
+          <label>{{ field_label }}</label>
+          <select name="map_{{ field_key }}">
+            <option value="">— skip —</option>
+            {% for h in headers %}
+            <option value="{{ h }}" {% if h|lower == field_key|lower %}selected{% endif %}>{{ h }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endfor %}
+      </div>
+
+      <br>
+      <p style="color:#7fb3d3;font-size:13px;">Preview — first {{ rows|length }} rows:</p>
+      <div style="overflow-x:auto;">
+        <table class="preview-table">
+          <thead>
+            <tr>{% for h in headers %}<th>{{ h }}</th>{% endfor %}</tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+            <tr>{% for h in headers %}<td>{{ row|get_item:h|default:"—" }}</td>{% endfor %}</tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <button type="submit" class="import-btn">✓ Import {{ all_rows|length }} Participants</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

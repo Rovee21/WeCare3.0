@@ -5,7 +5,9 @@ from django.core.mail import send_mail
 from django.utils.html import format_html
 from django.db.models import Count, Max, Q
 from .models import Participant
-
+import csv
+import io
+from django.http import HttpResponse
 
 class VoiceJournalInline(admin.TabularInline):
     model = None  # set below
@@ -158,8 +160,117 @@ class ParticipantAdmin(admin.ModelAdmin):
         urls = super().get_urls()
         custom = [
             path('<int:participant_id>/stats/', self.admin_site.admin_view(self.stats_view), name='participant_stats'),
+            path('import-csv/', self.admin_site.admin_view(self.csv_import_view), name='participant_csv_import'),
         ]
         return custom + urls
+    
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['import_csv_url'] = '/admin/participants/participant/import-csv/'
+        return super().changelist_view(request, extra_context=extra_context)
+    
+    def csv_import_view(self, request):
+        from django.template.response import TemplateResponse
+
+        # Step 3: Final import (no file, has 'import' flag)
+        if request.method == 'POST' and request.POST.get('import') == '1':
+            print("=== IMPORT TRIGGERED ===")
+            csv_data = request.session.get('csv_import_data', '')
+            print("Session data length:", len(csv_data))
+            reader = csv.DictReader(io.StringIO(csv_data))
+            mapping = {
+                'email':                   request.POST.get('map_email', ''),
+                'first_name':              request.POST.get('map_first_name', ''),
+                'last_name':               request.POST.get('map_last_name', ''),
+                'label':                   request.POST.get('map_label', ''),
+                'gender':                  request.POST.get('map_gender', ''),
+                'age':                     request.POST.get('map_age', ''),
+                'adrd_relationship_group': request.POST.get('map_relationship', ''),
+                'group1':                  request.POST.get('map_group1', ''),
+                'group2':                  request.POST.get('map_group2', ''),
+                'group3':                  request.POST.get('map_group3', ''),
+                'adrd_stage':              request.POST.get('map_adrd_stage', ''),
+            }
+
+            created, skipped, errors = 0, 0, []
+            for row in reader:
+                email = row.get(mapping['email'], '').strip()
+                if not email:
+                    skipped += 1
+                    continue
+                if Participant.objects.filter(email=email).exists():
+                    skipped += 1
+                    continue
+                try:
+                    age_val = row.get(mapping['age'], '').strip()
+                    p = Participant(
+                        email=email,
+                        first_name=row.get(mapping['first_name'], '').strip(),
+                        last_name=row.get(mapping['last_name'], '').strip(),
+                        label=row.get(mapping['label'], '').strip(),
+                        gender=row.get(mapping['gender'], '').strip().lower()[:10],
+                        age=int(age_val) if age_val.isdigit() else None,
+                        adrd_relationship_group=row.get(mapping['adrd_relationship_group'], '').strip().lower()[:20] or 'relative',
+                        group1=row.get(mapping['group1'], '').strip().lower()[:20] or 'intervention',
+                        group2=row.get(mapping['group2'], '').strip().lower()[:20] or 'moderate',
+                        group3=row.get(mapping['group3'], '').strip().lower()[:20] or 'low',
+                        adrd_stage=row.get(mapping['adrd_stage'], '').strip().lower()[:20],
+                        language='en',
+                        enrollment_week=1,
+                    )
+                    p.save()
+                    p.generate_enrollment_code()
+                    created += 1
+                except Exception as e:
+                    errors.append(f"Row {email}: {e}")
+
+            self.message_user(request, f"Import complete: {created} created, {skipped} skipped, {len(errors)} errors.")
+            if errors:
+                for err in errors[:5]:
+                    self.message_user(request, err, level='warning')
+            return self._redirect_to_changelist(request)
+
+        # Step 2: Preview (has file upload)
+        if request.method == 'POST' and 'csv_file' in request.FILES:
+            csv_file = request.FILES['csv_file']
+            decoded = csv_file.read().decode('utf-8-sig')
+            reader = csv.DictReader(io.StringIO(decoded))
+            rows = list(reader)
+            headers = reader.fieldnames
+            request.session['csv_import_data'] = decoded
+
+            context = {
+                **self.admin_site.each_context(request),
+                'title': 'Import Participants from CSV',
+                'headers': headers,
+                'rows': rows[:5],
+                'all_rows': rows,
+                'field_map': {
+                    'email': 'Email *',
+                    'first_name': 'First Name',
+                    'last_name': 'Last Name',
+                    'label': 'Label / Display Name',
+                    'gender': 'Gender',
+                    'age': 'Age',
+                    'relationship': 'Care Relationship',
+                    'group1': 'Study Cohort (intervention/control)',
+                    'group2': 'Condition Group (mild/moderate/severe)',
+                    'group3': 'Stress Group (high/low)',
+                    'adrd_stage': 'ADRD Stage',
+                },
+            }
+            return TemplateResponse(request, 'admin/participants/csv_preview.html', context)
+
+        # Step 1: Show upload form
+        context = {
+            **self.admin_site.each_context(request),
+            'title': 'Import Participants from CSV',
+        }
+        return TemplateResponse(request, 'admin/participants/csv_upload.html', context)
+
+    def _redirect_to_changelist(self, request):
+        from django.shortcuts import redirect
+        return redirect('/admin/participants/participant/')
 
     def stats_view(self, request, participant_id):
         from content.models import EngagementLog, ParticipantSession

@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SectionList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from '@react-navigation/native';
 import { getAllSessions } from '../services/sessionService';
 import { Colors } from '../constants/colors';
 
@@ -43,7 +44,15 @@ export default function CoursesScreen({ navigation }) {
   const [sessions, setSessions] = useState([]);
   const [query, setQuery] = useState('');
 
-  useEffect(() => { getAllSessions().then(setSessions); }, []);
+  // Re-fetch every time the screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      getAllSessions().then(data => {
+        console.log('CoursesScreen sessions:', data.length, data.map(s => s.title));
+        setSessions(data);
+      });
+    }, [])
+  );
 
   const totalSessions = sessions.length;
   const completedSessions = sessions.filter(s => s.is_read || s.isRead).length;
@@ -57,11 +66,11 @@ export default function CoursesScreen({ navigation }) {
     return groupByWeek(filtered);
   }, [sessions, query]);
 
-  function renderItem({ item }) {
+  const renderItem = useCallback(({ item }) => {
     const isRead = item.is_read || item.isRead;
     const isCurrent = !isRead && item.id === firstUnreadId;
     const mediaTypes = item.media_types || item.mediaTypes || [];
-    const meta = [mediaTypes[0], item.duration].filter(Boolean).join(' · ');
+    const meta = mediaTypes[0] ?? '';
 
     return (
       <TouchableOpacity
@@ -75,49 +84,47 @@ export default function CoursesScreen({ navigation }) {
         </View>
       </TouchableOpacity>
     );
-  }
+  }, [firstUnreadId, navigation]);
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.heading}>{t('courses.heading')}</Text>
+        <Text style={styles.subheading}>
+          {t('courses.subheadingPre')}
+          <Text style={styles.subheadingAccent}> {remaining} </Text>
+          {t('courses.subheadingPost')}
+        </Text>
+        {totalSessions > 0 && (
+          <View style={styles.progressCard}>
+            <Text style={styles.progressLabel}>{t('courses.progressLabel')}</Text>
+            <Text style={styles.progressCount}>
+              {t('courses.progress', { completed: completedSessions, total: totalSessions })}
+            </Text>
+            <View style={styles.progressBar}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${(completedSessions / totalSessions) * 100}%` },
+                ]}
+              />
+            </View>
+          </View>
+        )}
+        <TextInput
+          style={styles.searchInput}
+          placeholder={t('courses.searchPlaceholder')}
+          placeholderTextColor={Colors.textSecondary}
+          value={query}
+          onChangeText={setQuery}
+        />
+      </View>
       <SectionList
         sections={sections}
         keyExtractor={item => String(item.id)}
         renderItem={renderItem}
         renderSectionHeader={({ section }) => (
           <Text style={styles.sectionHeader}>{section.title}</Text>
-        )}
-        ListHeaderComponent={() => (
-          <View style={styles.header}>
-            <Text style={styles.heading}>{t('courses.heading')}</Text>
-            <Text style={styles.subheading}>
-              {t('courses.subheadingPre')}
-              <Text style={styles.subheadingAccent}> {remaining} </Text>
-              {t('courses.subheadingPost')}
-            </Text>
-            {totalSessions > 0 && (
-              <View style={styles.progressCard}>
-                <Text style={styles.progressLabel}>{t('courses.progressLabel')}</Text>
-                <Text style={styles.progressCount}>
-                  {t('courses.progress', { completed: completedSessions, total: totalSessions })}
-                </Text>
-                <View style={styles.progressBar}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      { width: `${(completedSessions / totalSessions) * 100}%` },
-                    ]}
-                  />
-                </View>
-              </View>
-            )}
-            <TextInput
-              style={styles.searchInput}
-              placeholder={t('courses.searchPlaceholder')}
-              placeholderTextColor={Colors.textSecondary}
-              value={query}
-              onChangeText={setQuery}
-            />
-          </View>
         )}
         contentContainerStyle={styles.list}
         stickySectionHeadersEnabled={false}
@@ -128,8 +135,8 @@ export default function CoursesScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
+  header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
   list: { paddingHorizontal: 16, paddingBottom: 24 },
-  header: { paddingTop: 8, paddingBottom: 4 },
   heading: {
     fontSize: 32,
     fontWeight: '700',
@@ -197,6 +204,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginTop: 20,
     marginBottom: 8,
+    paddingHorizontal: 16,
   },
   courseRow: {
     flexDirection: 'row',
@@ -214,34 +222,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  circleEmpty: {
-    borderWidth: 2,
-    borderColor: Colors.border,
-  },
-  circleRead: {
-    backgroundColor: Colors.primary,
-  },
-  circleCurrent: {
-    borderWidth: 2,
-    borderColor: Colors.primary,
-  },
-  circleDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.primary,
-  },
-  checkmark: {
-    color: Colors.white,
-    fontSize: 12,
-    fontWeight: '700',
-  },
+  circleEmpty: { borderWidth: 2, borderColor: Colors.border },
+  circleRead: { backgroundColor: Colors.primary },
+  circleCurrent: { borderWidth: 2, borderColor: Colors.primary },
+  circleDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.primary },
+  checkmark: { color: Colors.white, fontSize: 12, fontWeight: '700' },
   courseInfo: { flex: 1 },
-  courseTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-    marginBottom: 2,
-  },
+  courseTitle: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary, marginBottom: 2 },
   courseMeta: { fontSize: 12, color: Colors.textSecondary },
 });

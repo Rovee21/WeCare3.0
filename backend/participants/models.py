@@ -13,7 +13,7 @@ class Participant(models.Model):
     GROUP1_CONTROL = "control"
     GROUP1_CHOICES = [
         (GROUP1_INTERVENTION, "Intervention"),
-        (GROUP1_CONTROL, "Non-intervention"),
+        (GROUP1_CONTROL, "Control"),
     ]
 
     GROUP2_MILD = "mild"
@@ -54,6 +54,15 @@ class Participant(models.Model):
         User, on_delete=models.CASCADE, null=True, blank=True, related_name="participant"
     )
     email = models.EmailField(unique=True)
+    first_name = models.CharField(max_length=100, blank=True)
+    last_name = models.CharField(max_length=100, blank=True)
+    label = models.CharField(max_length=100, blank=True, help_text='Short human-readable label e.g. Mrs. Smith')
+    adrd_stage = models.CharField(
+        max_length=20,
+        blank=True,
+        choices=[('mild', 'Mild'), ('moderate', 'Moderate'), ('severe', 'Severe')],
+        help_text='Stage of ADRD of care recipient'
+    )
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES, blank=True)
     age = models.PositiveSmallIntegerField(null=True, blank=True)
     language = models.CharField(max_length=2, choices=LANGUAGE_CHOICES, default=LANGUAGE_EN)

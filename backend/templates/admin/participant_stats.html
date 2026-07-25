@@ -1,0 +1,234 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<style>
+  .stats-page { font-family: Arial, sans-serif; max-width: 1200px; }
+  .bar { background: #1a2a3a; border-radius: 8px; padding: 20px 24px; margin-bottom: 20px; }
+  .bar h2 { color: #7fb3d3; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 14px 0; }
+  .bar-grid { display: flex; flex-wrap: wrap; gap: 24px; }
+  .bar-item { min-width: 140px; }
+  .bar-item .label { color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .bar-item .value { color: #fff; font-size: 16px; font-weight: 600; }
+  .bar-item .value.green { color: #4caf50; }
+  .bar-item .value.amber { color: #ffc107; }
+  .bar-item .value.red { color: #f44336; }
+  .stats-table { width: 100%; border-collapse: collapse; margin-bottom: 32px; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+  .stats-table th { background: #1F6B9A; color: #fff; padding: 10px 14px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stats-table td { padding: 10px 14px; font-size: 13px; border-bottom: 1px solid #f0f0f0; color: #333; }
+  .stats-table tr:last-child td { border-bottom: none; }
+  .stats-table tr:nth-child(even) td { background: #f8fbff; }
+  .stats-table tr:nth-child(odd) td { background: #ffffff; }
+  .stats-table tbody tr td { background: #ffffff; }
+  .stats-table tbody tr:nth-child(even) td { background: #f4f8fc; }
+  .section-title { font-size: 15px; font-weight: 700; color: #7fb3d3; margin: 24px 0 10px 0; text-transform: uppercase; letter-spacing: 0.5px; border-left: 4px solid #1F6B9A; padding-left: 10px; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+  .badge-green { background: #e8f5e9; color: #2e7d32; }
+  .badge-gray { background: #f5f5f5; color: #999; }
+  .back-btn { display: inline-block; margin-bottom: 20px; padding: 8px 16px; background: #1F6B9A; color: #fff; border-radius: 6px; text-decoration: none; font-size: 13px; }
+  .back-btn:hover { background: #2E86C1; color: #fff; }
+  .dash { color: #ccc; }
+</style>
+
+<div class="stats-page">
+  <a class="back-btn" href="/admin/participants/participant/{{ participant.pk }}/change/">← Back to Participant</a>
+
+  <!-- BAR 1: Static Info -->
+  <div class="bar">
+    <h2>Participant Profile</h2>
+    <div class="bar-grid">
+      <div class="bar-item">
+        <div class="label">Participant ID</div>
+        <div class="value">{{ participant.participant_id }}</div>
+      </div>
+      <div class="bar-item">
+        <div class="label">Email</div>
+        <div class="value" style="font-size:13px;">{{ participant.email }}</div>
+      </div>
+      <div class="bar-item">
+        <div class="label">Language</div>
+        <div class="value">{{ participant.get_language_display }}</div>
+      </div>
+      <div class="bar-item">
+        <div class="label">Age</div>
+        <div class="value">{{ participant.age|default:"—" }}</div>
+      </div>
+      <div class="bar-item">
+        <div class="label">Gender</div>
+        <div class="value">{{ participant.get_gender_display|default:"—" }}</div>
+      </div>
+      <div class="bar-item">
+        <div class="label">Account Status</div>
+        <div class="value {% if participant.is_enrolled %}green{% else %}red{% endif %}">
+          {% if participant.is_enrolled %}Active{% else %}Inactive{% endif %}
+        </div>
+      </div>
+      <div class="bar-item">
+        <div class="label">Group 1</div>
+        <div class="value">{{ participant.get_group1_display }}</div>
+      </div>
+      <div class="bar-item">
+        <div class="label">Group 2</div>
+        <div class="value">{{ participant.get_group2_display }}</div>
+      </div>
+      <div class="bar-item">
+        <div class="label">Group 3</div>
+        <div class="value">{{ participant.get_group3_display }}</div>
+      </div>
+      <div class="bar-item">
+        <div class="label">Relationship</div>
+        <div class="value">{{ participant.get_adrd_relationship_group_display }}</div>
+      </div>
+      <div class="bar-item">
+        <div class="label">Enrolled</div>
+        <div class="value" style="font-size:13px;">{{ participant.enrolled_at|date:"M d, Y"|default:"—" }}</div>
+      </div>
+      <div class="bar-item">
+        <div class="label">Current Week</div>
+        <div class="value green">Week {{ participant.current_week_number }}</div>
+      </div>
+      <div class="bar-item">
+        <div class="label">Latest Emotion</div>
+        <div class="value">{{ latest_emotion|default:"—" }}</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BAR 2: Summary Stats -->
+  <div class="bar">
+    <h2>Tracking Summary</h2>
+    <div class="bar-grid">
+      <div class="bar-item">
+        <div class="label">Sessions Read</div>
+        <div class="value green">{{ summary.sessions_read }}</div>
+      </div>
+      <div class="bar-item">
+        <div class="label">Total Time</div>
+        <div class="value">{{ summary.total_time }}</div>
+      </div>
+      <div class="bar-item">
+        <div class="label">Video Time</div>
+        <div class="value">{{ summary.total_video_time }}</div>
+      </div>
+      <div class="bar-item">
+        <div class="label">Audio Time</div>
+        <div class="value">{{ summary.total_audio_time }}</div>
+      </div>
+      <div class="bar-item">
+        <div class="label">Text Time</div>
+        <div class="value">{{ summary.total_text_time }}</div>
+      </div>
+      <div class="bar-item">
+        <div class="label">VJ Submitted</div>
+        <div class="value">{{ summary.vj_submitted }} / 7</div>
+      </div>
+      <div class="bar-item">
+        <div class="label">Latest Stress</div>
+        <div class="value {% if summary.latest_stress != '—' %}{% if summary.latest_stress <= 3 %}green{% elif summary.latest_stress <= 6 %}amber{% else %}red{% endif %}{% endif %}">
+          {% if summary.latest_stress != '—' %}{{ summary.latest_stress }}/10{% else %}—{% endif %}
+        </div>
+      </div>
+      <div class="bar-item">
+        <div class="label">Last Active</div>
+        <div class="value" style="font-size:13px;">{{ summary.last_active|date:"M d, Y"|default:"—" }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Engagement Log Table -->
+  <div class="section-title">Engagement Log</div>
+  <table class="stats-table">
+    <thead>
+      <tr>
+        <th>Week</th>
+        <th>Session</th>
+        <th>Total Time</th>
+        <th>Video Time</th>
+        <th>Audio Time</th>
+        <th>Text Time</th>
+        <th>Video Opens</th>
+        <th>Emoji Taps</th>
+        <th>Logged At</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in engagement_logs %}
+      <tr>
+        <td>{{ log.week_number }}</td>
+        <td>{{ log.course_title }}</td>
+        <td>{{ log.total_time_display }}</td>
+        <td>{{ log.video_time_display }}</td>
+        <td>{{ log.audio_time_display }}</td>
+        <td>{{ log.text_time_display }}</td>
+        <td>{{ log.video_open_count|default:"—" }}</td>
+        <td>{{ log.interactive_feature_count|default:"—" }}</td>
+        <td>{{ log.logged_at|date:"M d, Y g:i a" }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="9" style="color:#999;text-align:center;padding:20px;">No engagement data yet</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Session Completions Table -->
+  <div class="section-title">Session Completions</div>
+  <table class="stats-table">
+    <thead>
+      <tr>
+        <th>Week</th>
+        <th>Day</th>
+        <th>Session</th>
+        <th>Status</th>
+        <th>Read At</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for ps in session_completions %}
+      <tr>
+        <td>{{ ps.session.week_number }}</td>
+        <td>{{ ps.session.day_number }}</td>
+        <td>{{ ps.session.title }}</td>
+        <td>
+          {% if ps.is_read %}
+            <span class="badge badge-green">✓ Read</span>
+          {% else %}
+            <span class="badge badge-gray">Unread</span>
+          {% endif %}
+        </td>
+        <td>{{ ps.read_at|date:"M d, Y g:i a"|default:"—" }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" style="color:#999;text-align:center;padding:20px;">No sessions completed yet</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- VJ Submissions Table -->
+  <div class="section-title">Voice Journal Submissions</div>
+  <table class="stats-table">
+    <thead>
+      <tr>
+        <th>Week</th>
+        <th>Duration</th>
+        <th>Emotion</th>
+        <th>Stress Level</th>
+        <th>Transcription</th>
+        <th>Submitted At</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for entry in vj_entries %}
+      <tr>
+        <td>Week {{ entry.week_number }}</td>
+        <td>{% with m=entry.recording_seconds|divisibleby:60 %}{{ entry.recording_seconds }}s{% endwith %}</td>
+        <td>{{ entry.get_emotion_label_display|default:"—" }}</td>
+        <td>{% if entry.vj_stress_level %}{{ entry.vj_stress_level }}/10{% else %}—{% endif %}</td>
+        <td>{{ entry.get_transcription_status_display }}</td>
+        <td>{{ entry.submitted_at|date:"M d, Y g:i a" }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" style="color:#999;text-align:center;padding:20px;">No Voice Journal submissions yet</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -53,14 +53,15 @@ def session_today(request):
     sessions = _filter_sessions_for_participant(participant)
 
     # Today's session: current week, lowest unread day first; fallback to last of week
-    week_sessions = [s for s in sessions if s.week_number == week]
-    unread_ids = set(
+    read_ids = set(
         ParticipantSession.objects.filter(
             participant=participant, is_read=True
         ).values_list("session_id", flat=True)
     )
-    unread = [s for s in week_sessions if s.id not in unread_ids]
-    today = unread[0] if unread else (week_sessions[-1] if week_sessions else None)
+
+    # Find first unread session across all weeks
+    unread = [s for s in sessions if s.id not in read_ids]
+    today = unread[0] if unread else None
 
     if not today:
         return Response({"detail": "No session available."}, status=status.HTTP_404_NOT_FOUND)
@@ -96,9 +97,51 @@ def log_engagement(request):
     if not participant:
         return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    serializer = EngagementLogSerializer(data=request.data)
-    if not serializer.is_valid():
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    session_id = request.data.get("session_id")
+    session = None
+    if session_id:
+        try:
+            session = Session.objects.get(pk=session_id)
+        except Session.DoesNotExist:
+            pass
 
-    EngagementLog.objects.create(participant=participant, **serializer.validated_data)
-    return Response({"status": "ok"}, status=status.HTTP_201_CREATED)
+    defaults = {
+        "course_title": request.data.get("course_title", ""),
+        "week_number": request.data.get("week_number"),
+    }
+
+    log, created = EngagementLog.objects.get_or_create(
+        participant=participant,
+        session=session,
+        defaults=defaults,
+    )
+
+    from django.db.models import F
+    update_fields = []
+
+    video_time = int(request.data.get("video_time_seconds", 0))
+    audio_time = int(request.data.get("audio_time_seconds", 0))
+    text_time  = int(request.data.get("text_time_seconds", 0))
+    video_opens = int(request.data.get("video_open_count", 0))
+    emoji_taps  = int(request.data.get("interactive_feature_count", 0))
+
+    if video_time:
+        log.video_time_seconds = F("video_time_seconds") + video_time
+        update_fields.append("video_time_seconds")
+    if audio_time:
+        log.audio_time_seconds = F("audio_time_seconds") + audio_time
+        update_fields.append("audio_time_seconds")
+    if text_time:
+        log.text_time_seconds = F("text_time_seconds") + text_time
+        update_fields.append("text_time_seconds")
+    if video_opens:
+        log.video_open_count = F("video_open_count") + video_opens
+        update_fields.append("video_open_count")
+    if emoji_taps:
+        log.interactive_feature_count = F("interactive_feature_count") + emoji_taps
+        update_fields.append("interactive_feature_count")
+
+    if update_fields:
+        log.save(update_fields=update_fields)
+
+    return Response({"status": "ok"}, status=status.HTTP_200_OK)

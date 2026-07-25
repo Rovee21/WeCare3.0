@@ -95,8 +95,20 @@ function MainTabs() {
 }
 
 export default function RootNavigator() {
+  const [initialRoute, setInitialRoute] = React.useState(null);
+
+  React.useEffect(() => {
+    import('../services/authService').then(({ getStoredToken }) => {
+      getStoredToken().then(token => {
+        setInitialRoute(token ? 'MainTabs' : 'Enrollment');
+      });
+    });
+  }, []);
+
+  if (!initialRoute) return null;
+
   return (
-    <Stack.Navigator initialRouteName="Enrollment" screenOptions={{ headerShown: false }}>
+    <Stack.Navigator initialRouteName={initialRoute} screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Enrollment" component={EnrollmentScreen} />
       <Stack.Screen name="MainTabs" component={MainTabs} />
     </Stack.Navigator>

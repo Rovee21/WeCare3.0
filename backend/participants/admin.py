@@ -1,9 +1,13 @@
+from django.template.response import TemplateResponse
+from django.urls import path
 from django.contrib import admin
 from django.core.mail import send_mail
 from django.utils.html import format_html
 from django.db.models import Count, Max, Q
 from .models import Participant
-
+import csv
+import io
+from django.http import HttpResponse
 
 class VoiceJournalInline(admin.TabularInline):
     model = None  # set below
@@ -30,32 +34,42 @@ class EngagementLogInline(admin.TabularInline):
     can_delete = False
     fields = [
         "week_number", "course_title",
-        "video_watch_display", "video_open_count",
-        "read_time_display", "read_count",
-        "emoji_taps_display", "logged_at",
+        "total_time_display",
+        "video_time_display", "audio_time_display", "text_time_display",
+        "video_open_count", "emoji_taps_display", "logged_at",
     ]
     readonly_fields = [
         "week_number", "course_title",
-        "video_watch_display", "video_open_count",
-        "read_time_display", "read_count",
-        "emoji_taps_display", "logged_at",
+        "total_time_display",
+        "video_time_display", "audio_time_display", "text_time_display",
+        "video_open_count", "emoji_taps_display", "logged_at",
     ]
     ordering = ["-logged_at"]
     verbose_name = "Engagement Event"
     verbose_name_plural = "Engagement Log"
 
-    def video_watch_display(self, obj):
-        if not obj.video_last_time:
+    def _fmt(self, seconds):
+        if not seconds:
             return "—"
-        m, s = divmod(obj.video_last_time, 60)
+        m, s = divmod(seconds, 60)
         return f"{m}:{s:02d}"
-    video_watch_display.short_description = "Watch Time"
 
-    def read_time_display(self, obj):
-        if not obj.read_minutes:
-            return "—"
-        return f"{obj.read_minutes:.1f} min"
-    read_time_display.short_description = "Read Time"
+    def total_time_display(self, obj):
+        total = obj.video_time_seconds + obj.audio_time_seconds + obj.text_time_seconds
+        return self._fmt(total)
+    total_time_display.short_description = "Total Time"
+
+    def video_time_display(self, obj):
+        return self._fmt(obj.video_time_seconds)
+    video_time_display.short_description = "Video Time"
+
+    def audio_time_display(self, obj):
+        return self._fmt(obj.audio_time_seconds)
+    audio_time_display.short_description = "Audio Time"
+
+    def text_time_display(self, obj):
+        return self._fmt(obj.text_time_seconds)
+    text_time_display.short_description = "Text Time"
 
     def emoji_taps_display(self, obj):
         return obj.interactive_feature_count or "—"
@@ -142,9 +156,186 @@ class ParticipantAdmin(admin.ModelAdmin):
 
     actions = ["generate_code_only", "generate_and_email_code"]
 
-    def change_view(self, request, object_id, form_url="", extra_context=None):
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path('<int:participant_id>/stats/', self.admin_site.admin_view(self.stats_view), name='participant_stats'),
+            path('import-csv/', self.admin_site.admin_view(self.csv_import_view), name='participant_csv_import'),
+        ]
+        return custom + urls
+    
+    def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
-        extra_context["show_history"] = False
+        extra_context['import_csv_url'] = '/admin/participants/participant/import-csv/'
+        return super().changelist_view(request, extra_context=extra_context)
+    
+    def csv_import_view(self, request):
+        from django.template.response import TemplateResponse
+
+        # Step 3: Final import (no file, has 'import' flag)
+        if request.method == 'POST' and request.POST.get('import') == '1':
+            print("=== IMPORT TRIGGERED ===")
+            csv_data = request.session.get('csv_import_data', '')
+            print("Session data length:", len(csv_data))
+            reader = csv.DictReader(io.StringIO(csv_data))
+            mapping = {
+                'email':                   request.POST.get('map_email', ''),
+                'first_name':              request.POST.get('map_first_name', ''),
+                'last_name':               request.POST.get('map_last_name', ''),
+                'label':                   request.POST.get('map_label', ''),
+                'gender':                  request.POST.get('map_gender', ''),
+                'age':                     request.POST.get('map_age', ''),
+                'adrd_relationship_group': request.POST.get('map_relationship', ''),
+                'group1':                  request.POST.get('map_group1', ''),
+                'group2':                  request.POST.get('map_group2', ''),
+                'group3':                  request.POST.get('map_group3', ''),
+                'adrd_stage':              request.POST.get('map_adrd_stage', ''),
+            }
+
+            created, skipped, errors = 0, 0, []
+            for row in reader:
+                email = row.get(mapping['email'], '').strip()
+                if not email:
+                    skipped += 1
+                    continue
+                if Participant.objects.filter(email=email).exists():
+                    skipped += 1
+                    continue
+                try:
+                    age_val = row.get(mapping['age'], '').strip()
+                    p = Participant(
+                        email=email,
+                        first_name=row.get(mapping['first_name'], '').strip(),
+                        last_name=row.get(mapping['last_name'], '').strip(),
+                        label=row.get(mapping['label'], '').strip(),
+                        gender=row.get(mapping['gender'], '').strip().lower()[:10],
+                        age=int(age_val) if age_val.isdigit() else None,
+                        adrd_relationship_group=row.get(mapping['adrd_relationship_group'], '').strip().lower()[:20] or 'relative',
+                        group1=row.get(mapping['group1'], '').strip().lower()[:20] or 'intervention',
+                        group2=row.get(mapping['group2'], '').strip().lower()[:20] or 'moderate',
+                        group3=row.get(mapping['group3'], '').strip().lower()[:20] or 'low',
+                        adrd_stage=row.get(mapping['adrd_stage'], '').strip().lower()[:20],
+                        language='en',
+                        enrollment_week=1,
+                    )
+                    p.save()
+                    p.generate_enrollment_code()
+                    created += 1
+                except Exception as e:
+                    errors.append(f"Row {email}: {e}")
+
+            self.message_user(request, f"Import complete: {created} created, {skipped} skipped, {len(errors)} errors.")
+            if errors:
+                for err in errors[:5]:
+                    self.message_user(request, err, level='warning')
+            return self._redirect_to_changelist(request)
+
+        # Step 2: Preview (has file upload)
+        if request.method == 'POST' and 'csv_file' in request.FILES:
+            csv_file = request.FILES['csv_file']
+            decoded = csv_file.read().decode('utf-8-sig')
+            reader = csv.DictReader(io.StringIO(decoded))
+            rows = list(reader)
+            headers = reader.fieldnames
+            request.session['csv_import_data'] = decoded
+
+            context = {
+                **self.admin_site.each_context(request),
+                'title': 'Import Participants from CSV',
+                'headers': headers,
+                'rows': rows[:5],
+                'all_rows': rows,
+                'field_map': {
+                    'email': 'Email *',
+                    'first_name': 'First Name',
+                    'last_name': 'Last Name',
+                    'label': 'Label / Display Name',
+                    'gender': 'Gender',
+                    'age': 'Age',
+                    'relationship': 'Care Relationship',
+                    'group1': 'Study Cohort (intervention/control)',
+                    'group2': 'Condition Group (mild/moderate/severe)',
+                    'group3': 'Stress Group (high/low)',
+                    'adrd_stage': 'ADRD Stage',
+                },
+            }
+            return TemplateResponse(request, 'admin/participants/csv_preview.html', context)
+
+        # Step 1: Show upload form
+        context = {
+            **self.admin_site.each_context(request),
+            'title': 'Import Participants from CSV',
+        }
+        return TemplateResponse(request, 'admin/participants/csv_upload.html', context)
+
+    def _redirect_to_changelist(self, request):
+        from django.shortcuts import redirect
+        return redirect('/admin/participants/participant/')
+
+    def stats_view(self, request, participant_id):
+        from content.models import EngagementLog, ParticipantSession
+        from journal.models import VoiceJournalEntry
+        from django.db.models import Sum
+
+        participant = Participant.objects.get(pk=participant_id)
+
+        raw_logs = EngagementLog.objects.filter(participant=participant).select_related('session').order_by('week_number', 'session__day_number')
+
+        totals = raw_logs.aggregate(
+            total_video=Sum('video_time_seconds'),
+            total_audio=Sum('audio_time_seconds'),
+            total_text=Sum('text_time_seconds'),
+        )
+
+        engagement_logs = []
+        for log in raw_logs:
+            total = log.video_time_seconds + log.audio_time_seconds + log.text_time_seconds
+            m, s = divmod(total, 60)
+            log.total_time_display = f"{m}:{s:02d}" if total else "—"
+            m, s = divmod(log.video_time_seconds, 60)
+            log.video_time_display = f"{m}:{s:02d}" if log.video_time_seconds else "—"
+            m, s = divmod(log.audio_time_seconds, 60)
+            log.audio_time_display = f"{m}:{s:02d}" if log.audio_time_seconds else "—"
+            m, s = divmod(log.text_time_seconds, 60)
+            log.text_time_display = f"{m}:{s:02d}" if log.text_time_seconds else "—"
+            engagement_logs.append(log)
+        session_completions = ParticipantSession.objects.filter(participant=participant).select_related('session').order_by('session__week_number', 'session__day_number')
+        vj_entries = VoiceJournalEntry.objects.filter(participant=participant).order_by('week_number')
+
+        def fmt(seconds):
+            if not seconds:
+                return '—'
+            m, s = divmod(seconds, 60)
+            return f'{m}:{s:02d}'
+
+        total_seconds = (totals['total_video'] or 0) + (totals['total_audio'] or 0) + (totals['total_text'] or 0)
+
+        context = {
+            **self.admin_site.each_context(request),
+            'participant': participant,
+            'engagement_logs': engagement_logs,
+            'session_completions': session_completions,
+            'vj_entries': vj_entries,
+            'summary': {
+                'sessions_read': session_completions.filter(is_read=True).count(),
+                'total_time': fmt(total_seconds),
+                'total_video_time': fmt(totals['total_video'] or 0),
+                'total_audio_time': fmt(totals['total_audio'] or 0),
+                'total_text_time': fmt(totals['total_text'] or 0),
+                'vj_submitted': vj_entries.count(),
+                'latest_stress': vj_entries.last().vj_stress_level if vj_entries.exists() else '—',
+                'latest_emotion': vj_entries.last().get_emotion_label_display() if vj_entries.exists() else '—',
+                'last_active': raw_logs.order_by('-logged_at').first().logged_at if raw_logs.exists() else None,
+            },
+            'fmt': fmt,
+            'title': f'{participant.participant_id} — Stats',
+        }
+        return TemplateResponse(request, 'admin/participant_stats.html', context)
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['show_history'] = False
+        extra_context['stats_url'] = f'/admin/participants/participant/{object_id}/stats/'
         return super().change_view(request, object_id, form_url, extra_context)
 
     def get_queryset(self, request):

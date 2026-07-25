@@ -5,11 +5,16 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema
 from .models import VoiceJournalPrompt, VoiceJournalEntry
 from .serializers import (
     VoiceJournalPromptSerializer,
     VoiceJournalSubmitSerializer,
     VoiceJournalEntrySerializer,
+    JournalPromptResponseSerializer,
+    UploadUrlResponseSerializer,
+    DirectUploadRequestSerializer,
+    DirectUploadResponseSerializer,
 )
 
 def _get_participant(request):
@@ -19,6 +24,7 @@ def _get_participant(request):
         return None
 
 
+@extend_schema(responses=JournalPromptResponseSerializer)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def journal_prompt(request):
@@ -42,6 +48,7 @@ def journal_prompt(request):
     })
 
 
+@extend_schema(request=None, responses=UploadUrlResponseSerializer)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def upload_url(request):
@@ -75,6 +82,7 @@ def upload_url(request):
     return Response({"upload_url": presigned_url, "s3_key": s3_key})
 
 
+@extend_schema(request=VoiceJournalSubmitSerializer, responses=VoiceJournalEntrySerializer)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def submit_entry(request):
@@ -138,6 +146,7 @@ def _trigger_transcription(entry):
         entry.transcription_status = VoiceJournalEntry.STATUS_FAILED
         entry.save(update_fields=["transcription_status"])
 
+@extend_schema(request=DirectUploadRequestSerializer, responses=DirectUploadResponseSerializer)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 @parser_classes([MultiPartParser, FormParser])

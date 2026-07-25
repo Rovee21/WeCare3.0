@@ -1,0 +1,597 @@
+openapi: 3.0.3
+info:
+  title: WeCare API
+  version: 1.0.0
+  description: API for the WeCare participant mobile app and admin console.
+paths:
+  /api/account/:
+    delete:
+      operationId: account_destroy
+      tags:
+      - account
+      security:
+      - tokenAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/engagement/:
+    post:
+      operationId: engagement_create
+      tags:
+      - engagement
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EngagementLog'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EngagementLog'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EngagementLog'
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+          description: ''
+  /api/enroll/:
+    post:
+      operationId: enroll_create
+      tags:
+      - enroll
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Enroll'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Enroll'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Enroll'
+        required: true
+      security:
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrollResponse'
+          description: ''
+  /api/journal/direct-upload/:
+    post:
+      operationId: journal_direct_upload_create
+      tags:
+      - journal
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DirectUploadRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DirectUploadRequest'
+        required: true
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DirectUploadResponse'
+          description: ''
+  /api/journal/prompt/:
+    get:
+      operationId: journal_prompt_retrieve
+      tags:
+      - journal
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JournalPromptResponse'
+          description: ''
+  /api/journal/submit/:
+    post:
+      operationId: journal_submit_create
+      description: Called after the audio has been uploaded to S3.
+      tags:
+      - journal
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoiceJournalSubmit'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VoiceJournalSubmit'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VoiceJournalSubmit'
+        required: true
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceJournalEntry'
+          description: ''
+  /api/journal/upload/:
+    post:
+      operationId: journal_upload_create
+      description: Return a presigned S3 URL so the app can upload audio directly.
+      tags:
+      - journal
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadUrlResponse'
+          description: ''
+  /api/profile/:
+    get:
+      operationId: profile_retrieve
+      tags:
+      - profile
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParticipantProfile'
+          description: ''
+  /api/sessions/:
+    get:
+      operationId: sessions_list
+      tags:
+      - sessions
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Session'
+          description: ''
+  /api/sessions/{session_id}/read/:
+    post:
+      operationId: sessions_read_create
+      parameters:
+      - in: path
+        name: session_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - sessions
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+          description: ''
+  /api/sessions/today/:
+    get:
+      operationId: sessions_today_retrieve
+      tags:
+      - sessions
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+          description: ''
+components:
+  schemas:
+    AdditionalResource:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          maxLength: 200
+        title_zh:
+          type: string
+          maxLength: 200
+        resource_type:
+          $ref: '#/components/schemas/ResourceTypeEnum'
+        url:
+          type: string
+          format: uri
+          maxLength: 200
+      required:
+      - id
+      - resource_type
+      - title
+      - url
+    AdrdRelationshipGroupEnum:
+      enum:
+      - spouse
+      - children
+      - relative
+      type: string
+      description: |-
+        * `spouse` - Spouse
+        * `children` - Children / Adult Child
+        * `relative` - Other Relative
+    DirectUploadRequest:
+      type: object
+      properties:
+        audio:
+          type: string
+          format: uri
+        recording_seconds:
+          type: integer
+          default: 0
+        emotion_label:
+          type: string
+        vj_stress_level:
+          type: integer
+          maximum: 10
+          minimum: 1
+          nullable: true
+      required:
+      - audio
+    DirectUploadResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        week_number:
+          type: integer
+        recording_seconds:
+          type: integer
+        submitted_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - recording_seconds
+      - submitted_at
+      - week_number
+    EngagementLog:
+      type: object
+      properties:
+        course_title:
+          type: string
+          maxLength: 200
+        week_number:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          nullable: true
+        video_open_count:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        video_last_time:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        read_count:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        read_minutes:
+          type: number
+          format: double
+        interactive_feature_count:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        interactive_feature_comment:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        infographic_open_count:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        tracking_download_count:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        pushup_time:
+          type: string
+          format: date-time
+          nullable: true
+        push_up:
+          type: string
+          maxLength: 200
+    Enroll:
+      type: object
+      properties:
+        code:
+          type: string
+          maxLength: 50
+      required:
+      - code
+    EnrollResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        language:
+          type: string
+        participant_id:
+          type: string
+        week_number:
+          type: integer
+        group1:
+          type: string
+        group2:
+          type: string
+        group3:
+          type: string
+        adrd_relationship_group:
+          type: string
+      required:
+      - adrd_relationship_group
+      - group1
+      - group2
+      - group3
+      - language
+      - participant_id
+      - token
+      - week_number
+    Group1Enum:
+      enum:
+      - intervention
+      - control
+      type: string
+      description: |-
+        * `intervention` - Intervention
+        * `control` - Non-intervention
+    Group2Enum:
+      enum:
+      - mild
+      - moderate
+      - severe
+      type: string
+      description: |-
+        * `mild` - Mild
+        * `moderate` - Moderate
+        * `severe` - Severe
+    Group3Enum:
+      enum:
+      - high
+      - low
+      type: string
+      description: |-
+        * `high` - High Stress
+        * `low` - Low Stress
+    JournalPromptResponse:
+      type: object
+      properties:
+        week_number:
+          type: integer
+          maximum: 32767
+          minimum: 0
+        prompt_en:
+          type: string
+        prompt_zh:
+          type: string
+        already_submitted:
+          type: boolean
+      required:
+      - already_submitted
+      - prompt_en
+      - prompt_zh
+      - week_number
+    LanguageEnum:
+      enum:
+      - en
+      - zh
+      type: string
+      description: |-
+        * `en` - English
+        * `zh` - Mandarin
+    ParticipantProfile:
+      type: object
+      properties:
+        participant_id:
+          type: string
+          readOnly: true
+        language:
+          $ref: '#/components/schemas/LanguageEnum'
+        group1:
+          $ref: '#/components/schemas/Group1Enum'
+        group2:
+          $ref: '#/components/schemas/Group2Enum'
+        group3:
+          $ref: '#/components/schemas/Group3Enum'
+        adrd_relationship_group:
+          $ref: '#/components/schemas/AdrdRelationshipGroupEnum'
+        week_number:
+          type: integer
+          readOnly: true
+        enrolled_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - adrd_relationship_group
+      - group1
+      - group2
+      - group3
+      - participant_id
+      - week_number
+    ResourceTypeEnum:
+      enum:
+      - Video
+      - Article
+      - PDF
+      type: string
+      description: |-
+        * `Video` - Video
+        * `Article` - Article
+        * `PDF` - PDF
+    Session:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          maxLength: 200
+        title_zh:
+          type: string
+          maxLength: 200
+        week_number:
+          type: integer
+          maximum: 32767
+          minimum: 0
+        day_number:
+          type: integer
+          maximum: 32767
+          minimum: 0
+        week_label:
+          type: string
+          readOnly: true
+        media_types:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        video_url:
+          type: string
+          format: uri
+          maxLength: 200
+        audio_url:
+          type: string
+          format: uri
+          maxLength: 200
+        text_content:
+          type: string
+        text_content_zh:
+          type: string
+        resources:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdditionalResource'
+          readOnly: true
+        is_read:
+          type: boolean
+          readOnly: true
+      required:
+      - day_number
+      - id
+      - is_read
+      - media_types
+      - resources
+      - title
+      - week_label
+      - week_number
+    StatusResponse:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+      - status
+    TranscriptionStatusEnum:
+      enum:
+      - pending
+      - processing
+      - completed
+      - failed
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `processing` - Processing
+        * `completed` - Completed
+        * `failed` - Failed
+    UploadUrlResponse:
+      type: object
+      properties:
+        upload_url:
+          type: string
+          format: uri
+        s3_key:
+          type: string
+      required:
+      - s3_key
+      - upload_url
+    VoiceJournalEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        week_number:
+          type: integer
+          maximum: 32767
+          minimum: 0
+        recording_seconds:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        vj_stress_level:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          nullable: true
+        transcription_status:
+          $ref: '#/components/schemas/TranscriptionStatusEnum'
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - id
+      - submitted_at
+      - week_number
+    VoiceJournalSubmit:
+      type: object
+      properties:
+        audio_s3_key:
+          type: string
+          maxLength: 500
+        recording_seconds:
+          type: integer
+          minimum: 0
+        vj_stress_level:
+          type: integer
+          maximum: 10
+          minimum: 1
+          nullable: true
+      required:
+      - audio_s3_key
+      - recording_seconds
+  securitySchemes:
+    tokenAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Token-based authentication with required prefix "Token"

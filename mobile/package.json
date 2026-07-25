@@ -7,7 +7,9 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "generate:api": "openapi-typescript ../backend/generated/openapi-schema.yaml -o src/generated/schema.d.ts",
+    "e2e:ios": "../e2e/run.sh"
   },
   "dependencies": {
     "@expo/metro-config": "^54.0.16",
@@ -21,6 +23,7 @@
     "expo-secure-store": "~15.0.8",
     "expo-video": "~3.0.16",
     "i18next": "^26.2.0",
+    "openapi-fetch": "^0.17.0",
     "react": "19.1.0",
     "react-i18next": "^17.0.8",
     "react-native": "0.81.5",
@@ -29,5 +32,10 @@
     "react-native-reanimated": "~4.1.1",
     "react-native-safe-area-context": "~5.6.2",
     "react-native-screens": "~4.16.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.17",
+    "openapi-typescript": "^7.13.0",
+    "typescript": "^5.9.3"
   }
 }

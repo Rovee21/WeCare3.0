@@ -9,6 +9,9 @@ import { Colors } from '../constants/colors';
 function groupByWeek(sessions) {
   const map = {};
   for (const s of sessions) {
+    // TODO: `s` comes straight from the typed API client now, which is consistently
+    // snake_case (see README > API Contract & Codegen). The `?? s.weekNumber` fallback
+    // is dead code from before that fix and can be removed.
     const key = s.week_number ?? s.weekNumber ?? 1;
     if (!map[key]) map[key] = [];
     map[key].push(s);

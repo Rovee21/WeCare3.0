@@ -29,11 +29,11 @@ class Session(models.Model):
         return f"W{self.week_number}D{self.day_number}: {self.title}"
 
     @property
-    def week_label(self):
+    def week_label(self) -> str:
         return f"WEEK {self.week_number}"
 
     @property
-    def media_types(self):
+    def media_types(self) -> list[str]:
         types = []
         if self.video_url:
             types.append("Video")

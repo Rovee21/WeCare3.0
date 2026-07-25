@@ -3,8 +3,9 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema
 from .models import Session, ParticipantSession, EngagementLog
-from .serializers import SessionSerializer, EngagementLogSerializer
+from .serializers import SessionSerializer, EngagementLogSerializer, StatusResponseSerializer
 
 
 def _get_participant(request):
@@ -28,6 +29,7 @@ def _filter_sessions_for_participant(participant):
     return filtered
 
 
+@extend_schema(responses=SessionSerializer(many=True))
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def session_list(request):
@@ -39,6 +41,7 @@ def session_list(request):
     return Response(serializer.data)
 
 
+@extend_schema(responses=SessionSerializer)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def session_today(request):
@@ -65,6 +68,7 @@ def session_today(request):
     return Response(SessionSerializer(today, context={"request": request}).data)
 
 
+@extend_schema(request=None, responses=StatusResponseSerializer)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def mark_read(request, session_id):
@@ -85,6 +89,7 @@ def mark_read(request, session_id):
     return Response({"status": "ok"})
 
 
+@extend_schema(request=EngagementLogSerializer, responses=StatusResponseSerializer)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def log_engagement(request):

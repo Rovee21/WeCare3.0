@@ -1,0 +1,14 @@
+repos:
+  - repo: local
+    hooks:
+      - id: api-codegen-freshness
+        name: API codegen freshness (openapi schema + generated types)
+        description: >-
+          Regenerates backend/generated/openapi-schema.yaml and mobile/src/generated/schema.d.ts
+          and fails the commit if that produces a diff. Requires the backend Docker containers
+          to be running (cd backend && docker-compose up -d).
+        entry: scripts/check-api-codegen.sh
+        language: system
+        pass_filenames: false
+        files: ^(backend/.*\.py$|backend/generated/|mobile/src/generated/)
+        exclude: ^backend/.*/migrations/

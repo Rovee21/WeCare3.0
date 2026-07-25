@@ -131,10 +131,10 @@ export default function VoiceJournalScreen({ navigation }) {
           <Text style={styles.confirmQuestion}>
             Are you sure you want to submit this recording?
           </Text>
-          <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+          <TouchableOpacity testID="voice-journal-submit-button" style={styles.submitButton} onPress={handleSubmit}>
             <Text style={styles.submitButtonText}>✓ Yes, Submit</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.reRecordButton} onPress={handleReRecord}>
+          <TouchableOpacity testID="voice-journal-rerecord-button" style={styles.reRecordButton} onPress={handleReRecord}>
             <Text style={styles.reRecordButtonText}>🔄 No, Record Again</Text>
           </TouchableOpacity>
         </View>
@@ -154,6 +154,7 @@ export default function VoiceJournalScreen({ navigation }) {
         </Text>
         <View style={styles.recordingArea}>
           <TouchableOpacity
+            testID="voice-journal-record-button"
             style={[styles.recordButton, isRecording && styles.recordButtonActive]}
             onPress={isRecording ? stopRecording : startRecording}
             activeOpacity={0.8}

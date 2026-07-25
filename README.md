@@ -12,8 +12,11 @@ A bilingual (English + Mandarin) mobile app delivering a structured 7-week careg
 4. [Running the Backend](#running-the-backend)
 5. [Environment Variables](#environment-variables)
 6. [Key Commands](#key-commands)
-7. [Tech Stack](#tech-stack)
-8. [App Overview](#app-overview)
+7. [E2E Testing](#e2e-testing)
+8. [API Contract & Codegen](#api-contract--codegen)
+9. [Pre-commit Hooks](#pre-commit-hooks)
+10. [Tech Stack](#tech-stack)
+11. [App Overview](#app-overview)
 
 ---
 
@@ -29,7 +32,9 @@ WeCare3.0/
     src/
       screens/                  # One file per screen
       navigation/               # RootNavigator (stack + bottom tabs)
-      services/                 # All API calls (authService, sessionService, userService)
+      services/                 # All API calls (authService, sessionService, userService, journalService)
+      api/                      # Hand-written typed client (client.ts) — wraps openapi-fetch
+      generated/                # Generated code only (schema.d.ts) — do not hand-edit, see scripts/generate-api.sh
       i18n/                     # Translations (en.json, zh.json)
       constants/                # Colors, theme
   backend/                      # Django REST API + Admin Console
@@ -37,6 +42,7 @@ WeCare3.0/
     docker-compose.yml          # Runs Postgres + Django together
     Dockerfile
     requirements.txt
+    generated/                  # Generated code only (openapi-schema.yaml) — regenerate with scripts/generate-api.sh
     .env.example                # Copy this to .env and fill in values
     participants/               # Enrollment, auth, participant model
     content/                    # Sessions, engagement logs, notifications
@@ -46,6 +52,8 @@ WeCare3.0/
         base.py                 # Shared settings
         local.py                # Local dev overrides
         production.py           # Production overrides
+  scripts/
+    generate-api.sh             # Regenerates backend/generated/openapi-schema.yaml + mobile/src/generated/schema.d.ts (Dockerized, no host installs)
 ```
 
 ---
@@ -180,7 +188,7 @@ Use your local IP, not `localhost`, so the phone can reach it. This only works l
 
 ### Mobile app
 
-The mobile app has no `.env` file yet — the API base URL is set in `mobile/src/services/api.js`. When connecting to the real backend, update `BASE_URL` there.
+Copy `mobile/.env.example` to `mobile/.env` to override the API base URL (`EXPO_PUBLIC_API_URL`). It defaults to `http://localhost:8000`, which works for the iOS Simulator against `docker-compose up` in `backend/`. Physical devices need your machine's LAN IP; the Android emulator needs `http://10.0.2.2:8000`. See `mobile/src/services/api.js`.
 
 ### Backend (`backend/.env`)
 
@@ -211,6 +219,7 @@ npm install              # Install dependencies
 npx expo start --clear   # Start dev server (clears cache)
 npx expo start --ios     # iOS simulator only
 npx expo start --android # Android emulator only
+npm run generate:api     # Regenerate src/generated/schema.d.ts from backend/generated/openapi-schema.yaml
 ```
 
 ### Backend (run from the `backend/` directory)
@@ -228,6 +237,81 @@ docker-compose logs web                                    # View Django logs
 
 ---
 
+## E2E Testing
+
+`e2e/run.sh` drives the real app (iOS Simulator, via Expo Go) against the real Dockerized backend using [Maestro](https://maestro.mobile.dev). No mocking — it exercises actual network calls, the actual database, and actual audio recording.
+
+**One-time setup:**
+```bash
+brew tap mobile-dev-inc/tap
+brew install mobile-dev-inc/tap/maestro
+```
+(Plain `brew install maestro` installs an unrelated app of the same name — use the tap above.)
+
+Maestro runs on the JVM, so it needs a Java runtime on the host. Most Macs don't have one by default — if `maestro --version` fails with something like `Unable to locate a Java Runtime`, install one:
+```bash
+brew install openjdk
+```
+(Follow the symlink instructions `brew` prints after install, so `java` is on your `PATH`.)
+
+The iOS Simulator also needs microphone access for the voice-journal flow: macOS System Settings → Privacy & Security → Microphone → enable **Simulator**. This is a one-time host-level grant that can't be scripted.
+
+**Running:**
+```bash
+open -a Simulator                # boot a simulator first if none is running
+npm run e2e:ios --prefix mobile  # or: e2e/run.sh
+```
+
+The script starts `backend/docker-compose`, waits for it to respond, resets the test participant (`reset_participant`) to get a fresh single-use enrollment code, deep-links Expo Go to whatever Metro dev server is running (reusing one you already have open, or starting one), and runs every flow in `e2e/flows/`. Each flow gets its own fresh reset + code, since enrollment codes are single-use and the app has no "already enrolled" bootstrap check (it always starts at the Enrollment screen).
+
+Flows are plain Maestro YAML (`e2e/flows/*.yaml`), targeting `testID`s added to the relevant screens. Add new flows by dropping another `.yaml` file in that directory.
+
+---
+
+## API Contract & Codegen
+
+The backend's API is documented as an OpenAPI 3 schema via [drf-spectacular](https://drf-spectacular.readthedocs.io/), and the mobile app's API client is generated from that schema instead of being hand-written — this is the source of truth for what the backend actually returns, so the two sides can't drift out of sync.
+
+- **Browse the API interactively:** `http://localhost:8000/api/schema/swagger-ui/` (backend must be running)
+- **Raw schema:** `http://localhost:8000/api/schema/`, or the checked-in `backend/generated/openapi-schema.yaml`
+- **Generated mobile types:** `mobile/src/generated/schema.d.ts` (do not hand-edit — regenerate it)
+- **Typed client:** `mobile/src/api/client.ts` (hand-written, not generated) wraps [openapi-fetch](https://openapi-ts.dev/openapi-fetch/) with auth-token injection (mirrors the old `apiFetch` behavior) and an `unwrap()` helper that throws on error responses, so service functions keep their original signatures.
+
+**Regenerating after a backend API change:**
+```bash
+./scripts/generate-api.sh
+```
+This runs entirely in Docker (a `manage.py spectacular` call inside the `web` container, plus a `node:20-alpine` container for `openapi-typescript`) — nothing is installed on the host. Requires the backend containers to be running (`docker-compose up -d` from `backend/`).
+
+**Design notes:**
+- The wire format is **snake_case** end-to-end (matches Django/DRF convention) — the mobile services no longer do manual `snake_case → camelCase` remapping.
+- Function-based `@api_view` views (all of them, in this codebase) don't get automatic schema inference from drf-spectacular the way class-based generic views/viewsets do — every view has an explicit `@extend_schema(request=..., responses=...)` annotation. Keep this in mind when adding a new endpoint: without the annotation, it'll show up in the schema with an empty body.
+- One deliberate exception: `journalService.directUpload()` (multipart audio upload) bypasses the typed client and calls `fetch` directly. OpenAPI has no distinct binary-file type for multipart fields, so drf-spectacular represents Django's `FileField` as a `string`, which isn't usable for an actual file upload — forcing it through the typed client would fight the type system for no benefit.
+
+---
+
+## Pre-commit Hooks
+
+This repo uses [pre-commit](https://pre-commit.com) to run repo-local checks before each commit. Right now there's one hook, `api-codegen-freshness` (see `.pre-commit-config.yaml`): whenever a commit touches backend Python code or the generated API files, it re-runs `scripts/generate-api.sh` and blocks the commit if that produces a diff — this is what actually enforces the [API Contract & Codegen](#api-contract--codegen) rule that `backend/generated/openapi-schema.yaml` and `mobile/src/generated/schema.d.ts` stay in sync with the backend code.
+
+**One-time setup (Mac):**
+```bash
+brew install pre-commit
+```
+Then, from the repo root, install the git hook so it actually runs on `git commit`:
+```bash
+pre-commit install
+```
+
+The `api-codegen-freshness` hook shells out to `scripts/generate-api.sh`, which runs against the backend Docker containers — start those first (`cd backend && docker-compose up -d`) or commits touching backend/generated code will fail with a "container isn't running" error rather than a real codegen diff.
+
+To run all hooks on demand without committing (e.g. to check before pushing):
+```bash
+pre-commit run --all-files
+```
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -237,7 +321,9 @@ docker-compose logs web                                    # View Django logs
 | Internationalization | react-i18next (English + Mandarin) |
 | Audio recording | `expo-audio` (Voice Journal) |
 | Video playback | `expo-video` (course session video tab) |
+| API client | Types generated from OpenAPI via `openapi-typescript` (`src/generated/`) + hand-written `openapi-fetch` client (`src/api/`); TypeScript for those plus `src/services/`, rest of the app stays JS |
 | Backend | Django 4.2, Django REST Framework |
+| API schema | `drf-spectacular` (OpenAPI 3) |
 | Database | PostgreSQL (local via Docker, production via AWS RDS) |
 | Auth | DRF token auth (one-time enrollment code → permanent token) |
 | Storage | AWS S3 (curriculum media, VJ audio recordings) |

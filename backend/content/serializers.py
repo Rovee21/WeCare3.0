@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 from .models import Session, AdditionalResource, EngagementLog
 
 
@@ -23,6 +24,7 @@ class SessionSerializer(serializers.ModelSerializer):
             "resources", "is_read",
         ]
 
+    @extend_schema_field(serializers.BooleanField)
     def get_is_read(self, obj):
         request = self.context.get("request")
         if not request or not request.user.is_authenticated:
@@ -32,6 +34,10 @@ class SessionSerializer(serializers.ModelSerializer):
             return ps.is_read
         except Exception:
             return False
+
+
+class StatusResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
 
 
 class EngagementLogSerializer(serializers.ModelSerializer):

@@ -5,10 +5,12 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from django.contrib.auth.models import User
+from drf_spectacular.utils import extend_schema
 from .models import Participant
-from .serializers import EnrollSerializer, ParticipantProfileSerializer
+from .serializers import EnrollSerializer, EnrollResponseSerializer, ParticipantProfileSerializer
 
 
+@extend_schema(request=EnrollSerializer, responses=EnrollResponseSerializer)
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def enroll(request):
@@ -51,6 +53,7 @@ def enroll(request):
     })
 
 
+@extend_schema(responses=ParticipantProfileSerializer)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def profile(request):
@@ -61,6 +64,7 @@ def profile(request):
     return Response(ParticipantProfileSerializer(participant).data)
 
 
+@extend_schema(responses={204: None})
 @api_view(["DELETE"])
 @permission_classes([IsAuthenticated])
 def delete_account(request):

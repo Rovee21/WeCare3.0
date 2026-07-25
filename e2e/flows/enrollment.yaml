@@ -1,0 +1,17 @@
+# Enrolls with a fresh, single-use code (provided by e2e/run.sh via -e ENROLLMENT_CODE).
+# e2e/run.sh deep-links Expo Go to the dev server before this flow starts, so the app
+# is already loaded fresh (RootNavigator always starts at Enrollment).
+appId: host.exp.Exponent
+---
+- extendedWaitUntil:
+    visible:
+      text: "Create account"
+    timeout: 30000
+- tapOn:
+    id: "enrollment-code-input"
+- inputText: "${ENROLLMENT_CODE}"
+- pressKey: Enter # dismiss the keyboard — it otherwise covers the submit button (no KeyboardAvoidingView on this screen)
+- tapOn:
+    id: "enrollment-submit-button"
+- assertVisible:
+    id: "home-voice-journal-card"

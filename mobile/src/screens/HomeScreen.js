@@ -95,6 +95,7 @@ export default function HomeScreen({ navigation }) {
 
         {/* Voice Journal card */}
         <TouchableOpacity
+          testID="home-voice-journal-card"
           style={styles.card}
           onPress={() => navigation.navigate('Journal')}
           activeOpacity={0.85}

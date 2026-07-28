@@ -89,6 +89,12 @@ export default function CoursesScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity 
+          onPress={() => navigation.navigate('Home')}
+          style={{ alignSelf: 'flex-start', marginBottom: 8 }}
+        >
+          <Text style={{ fontSize: 18, color: Colors.accent, fontWeight: '500' }}> ← Home Page</Text>
+        </TouchableOpacity>
         <Text style={styles.heading}>{t('courses.heading')}</Text>
         <Text style={styles.subheading}>
           {t('courses.subheadingPre')}

@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { logEngagement, markAsRead } from '../services/sessionService';
 import { Colors } from '../constants/colors';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import { Linking } from 'react-native';
 
 export default function DailySessionScreen({ route, navigation }) {
   const { t } = useTranslation();
@@ -16,7 +17,6 @@ export default function DailySessionScreen({ route, navigation }) {
   const tabStartTimeRef = React.useRef(Date.now());
   const activeTabRef = React.useRef('Video');
   const videoTimeRef = React.useRef(0);
-  const audioTimeRef = React.useRef(0);
   const textTimeRef = React.useRef(0);
   const videoOpenRef = React.useRef(course?.video_url ? 1 : 0);
 
@@ -34,18 +34,16 @@ export default function DailySessionScreen({ route, navigation }) {
       const secondsOnTab = Math.round((Date.now() - tabStartTimeRef.current) / 1000);
       if (secondsOnTab > 0) {
         if (activeTabRef.current === 'Video') videoTimeRef.current += secondsOnTab;
-        else if (activeTabRef.current === 'Audio') audioTimeRef.current += secondsOnTab;
         else if (activeTabRef.current === 'Text') textTimeRef.current += secondsOnTab;
       }
 
-      const total = videoTimeRef.current + audioTimeRef.current + textTimeRef.current;
+      const total = videoTimeRef.current + textTimeRef.current;
       if (total > 3) {
         logEngagement({
           session_id: course?.id,
           course_title: course?.title || '',
           week_number: course?.week_number || course?.weekNumber || 1,
           video_time_seconds: videoTimeRef.current,
-          audio_time_seconds: audioTimeRef.current,
           text_time_seconds: textTimeRef.current,
           video_open_count: videoOpenRef.current,
         }).then(() => console.log('Engagement logged'))
@@ -56,10 +54,9 @@ export default function DailySessionScreen({ route, navigation }) {
 
   const tabs = [
     t('session.tabs.video'),
-    t('session.tabs.audio'),
     t('session.tabs.text'),
   ];
-  const tabKeys = ['Video', 'Audio', 'Text'];
+  const tabKeys = ['Video', 'Text'];
 
   async function handleEmoji(emoji) {
     await logEngagement({
@@ -72,7 +69,6 @@ export default function DailySessionScreen({ route, navigation }) {
   async function handleTabChange(tabKey) {
     const secondsOnTab = Math.round((Date.now() - tabStartTimeRef.current) / 1000);
     if (activeTabRef.current === 'Video') videoTimeRef.current += secondsOnTab;
-    else if (activeTabRef.current === 'Audio') audioTimeRef.current += secondsOnTab;
     else if (activeTabRef.current === 'Text') textTimeRef.current += secondsOnTab;
 
     tabStartTimeRef.current = Date.now();
@@ -90,7 +86,12 @@ export default function DailySessionScreen({ route, navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Text style={styles.backText}>← {t('session.courseList')}</Text>
         </TouchableOpacity>
-        <Text style={styles.overflow}>⋯</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <TouchableOpacity onPress={() => navigation.navigate('Home')} style={styles.backButton}>
+            <Text style={styles.backText}>🏠</Text>
+          </TouchableOpacity>
+          <Text style={styles.overflow}>⋯</Text>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
@@ -128,12 +129,6 @@ export default function DailySessionScreen({ route, navigation }) {
               </View>
             )
           )}
-          {activeTab === 'Audio' && (
-            <View style={styles.audioPlaceholder}>
-              <Text style={styles.playIcon}>🎧</Text>
-              <Text style={styles.placeholderLabel}>Audio player coming soon</Text>
-            </View>
-          )}
           {activeTab === 'Text' && (
             <View style={styles.textContent}>
               <Text style={styles.textBody}>
@@ -151,9 +146,16 @@ export default function DailySessionScreen({ route, navigation }) {
                 <TouchableOpacity
                   key={r.id}
                   style={styles.resourceCard}
-                  onPress={() => logEngagement({ infographic_open_count: 1, course_title: course.title })}
+                  onPress={() => {
+                    logEngagement({ infographic_open_count: 1, course_title: course.title });
+                    Linking.openURL(r.url);
+                  }}
                 >
-                  <View style={styles.resourceThumb} />
+                  <View style={styles.resourceThumb}>
+                    <Text style={{ fontSize: 32, textAlign: 'center', marginTop: 10 }}>
+                      {r.resource_type === 'PDF' ? '📄' : r.resource_type === 'Video' ? '🎬' : '🔗'}
+                    </Text>
+                  </View>
                   <Text style={styles.resourceTitle}>{r.title}</Text>
                   <Text style={styles.resourceType}>{r.resource_type}</Text>
                 </TouchableOpacity>
@@ -164,7 +166,7 @@ export default function DailySessionScreen({ route, navigation }) {
       </ScrollView>
 
       <View style={styles.bottomBar}>
-        {['😊', '😐', '😢'].map(emoji => (
+        {['👍', '❤️', '💬'].map(emoji => (
           <TouchableOpacity key={emoji} onPress={() => handleEmoji(emoji)} style={styles.emojiButton}>
             <Text style={styles.emoji}>{emoji}</Text>
           </TouchableOpacity>
@@ -184,7 +186,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   backButton: { padding: 4 },
-  backText: { fontSize: 15, color: Colors.accent, fontWeight: '500' },
+  backText: { fontSize: 18, color: Colors.accent, fontWeight: '500' },
   overflow: { fontSize: 20, color: Colors.textSecondary },
   scroll: { paddingHorizontal: 16, paddingBottom: 24 },
   meta: { fontSize: 13, color: Colors.textSecondary, marginBottom: 6 },

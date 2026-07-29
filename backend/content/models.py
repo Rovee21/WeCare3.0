@@ -15,9 +15,18 @@ class Session(models.Model):
     text_content_zh = models.TextField(blank=True)
 
     # Cohort targeting — blank means "show to all" for that dimension
-    target_group1 = models.CharField(max_length=20, blank=True)
-    target_group2 = models.CharField(max_length=20, blank=True)
-    target_group3 = models.CharField(max_length=20, blank=True)
+    target_group1 = models.CharField(
+        max_length=20, blank=True,
+        choices=[('', 'All'), ('intervention', 'Intervention'), ('control', 'Control')]
+    )
+    target_group2 = models.CharField(
+        max_length=20, blank=True,
+        choices=[('', 'All'), ('mild', 'Mild'), ('moderate', 'Moderate'), ('severe', 'Severe')]
+    )
+    target_group3 = models.CharField(
+        max_length=20, blank=True,
+        choices=[('', 'All'), ('high', 'High Stress'), ('low', 'Low Stress')]
+    )
 
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

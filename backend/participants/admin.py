@@ -35,13 +35,13 @@ class EngagementLogInline(admin.TabularInline):
     fields = [
         "week_number", "course_title",
         "total_time_display",
-        "video_time_display", "audio_time_display", "text_time_display",
+        "video_time_display", "text_time_display",
         "video_open_count", "emoji_taps_display", "logged_at",
     ]
     readonly_fields = [
         "week_number", "course_title",
         "total_time_display",
-        "video_time_display", "audio_time_display", "text_time_display",
+        "video_time_display", "text_time_display",
         "video_open_count", "emoji_taps_display", "logged_at",
     ]
     ordering = ["-logged_at"]
@@ -55,17 +55,13 @@ class EngagementLogInline(admin.TabularInline):
         return f"{m}:{s:02d}"
 
     def total_time_display(self, obj):
-        total = obj.video_time_seconds + obj.audio_time_seconds + obj.text_time_seconds
+        total = obj.video_time_seconds + obj.text_time_seconds
         return self._fmt(total)
     total_time_display.short_description = "Total Time"
 
     def video_time_display(self, obj):
         return self._fmt(obj.video_time_seconds)
     video_time_display.short_description = "Video Time"
-
-    def audio_time_display(self, obj):
-        return self._fmt(obj.audio_time_seconds)
-    audio_time_display.short_description = "Audio Time"
 
     def text_time_display(self, obj):
         return self._fmt(obj.text_time_seconds)
@@ -119,7 +115,7 @@ class ParticipantAdmin(admin.ModelAdmin):
         "current_week_display", "latest_vj_stress",
         "user", "created_at", "updated_at",
     ]
-    inlines = [EngagementLogInline, SessionCompletionInline, VoiceJournalInline]
+    inlines = []
     list_per_page = 50
 
     fieldsets = (
@@ -283,19 +279,16 @@ class ParticipantAdmin(admin.ModelAdmin):
 
         totals = raw_logs.aggregate(
             total_video=Sum('video_time_seconds'),
-            total_audio=Sum('audio_time_seconds'),
             total_text=Sum('text_time_seconds'),
         )
 
         engagement_logs = []
         for log in raw_logs:
-            total = log.video_time_seconds + log.audio_time_seconds + log.text_time_seconds
+            total = log.video_time_seconds + log.text_time_seconds
             m, s = divmod(total, 60)
             log.total_time_display = f"{m}:{s:02d}" if total else "—"
             m, s = divmod(log.video_time_seconds, 60)
             log.video_time_display = f"{m}:{s:02d}" if log.video_time_seconds else "—"
-            m, s = divmod(log.audio_time_seconds, 60)
-            log.audio_time_display = f"{m}:{s:02d}" if log.audio_time_seconds else "—"
             m, s = divmod(log.text_time_seconds, 60)
             log.text_time_display = f"{m}:{s:02d}" if log.text_time_seconds else "—"
             engagement_logs.append(log)
@@ -308,7 +301,7 @@ class ParticipantAdmin(admin.ModelAdmin):
             m, s = divmod(seconds, 60)
             return f'{m}:{s:02d}'
 
-        total_seconds = (totals['total_video'] or 0) + (totals['total_audio'] or 0) + (totals['total_text'] or 0)
+        total_seconds = (totals['total_video'] or 0) + (totals['total_text'] or 0)
 
         context = {
             **self.admin_site.each_context(request),
@@ -320,7 +313,6 @@ class ParticipantAdmin(admin.ModelAdmin):
                 'sessions_read': session_completions.filter(is_read=True).count(),
                 'total_time': fmt(total_seconds),
                 'total_video_time': fmt(totals['total_video'] or 0),
-                'total_audio_time': fmt(totals['total_audio'] or 0),
                 'total_text_time': fmt(totals['total_text'] or 0),
                 'vj_submitted': vj_entries.count(),
                 'latest_stress': vj_entries.last().vj_stress_level if vj_entries.exists() else '—',

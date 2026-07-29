@@ -14,7 +14,7 @@ class AdditionalResourceInline(admin.TabularInline):
 class SessionAdmin(admin.ModelAdmin):
     list_display = [
         "week_number", "day_number", "title",
-        "cohort_target", "has_video", "has_audio", "has_text",
+        "cohort_target", "has_video", "has_text",
         "participants_read", "is_active",
     ]
     list_filter = ["week_number", "target_group1", "target_group2", "target_group3", "is_active"]
@@ -31,7 +31,7 @@ class SessionAdmin(admin.ModelAdmin):
             "description": "Leave blank to show this session to all participants in that dimension.",
         }),
         ("Media URLs", {
-            "fields": ("video_url", "audio_url"),
+            "fields": ("video_url",),
             "description": "Enter S3 URLs or external video embed URLs.",
         }),
         ("Text Content", {
@@ -57,11 +57,6 @@ class SessionAdmin(admin.ModelAdmin):
     has_video.boolean = True
     has_video.short_description = "Video"
 
-    def has_audio(self, obj):
-        return bool(obj.audio_url)
-    has_audio.boolean = True
-    has_audio.short_description = "Audio"
-
     def has_text(self, obj):
         return bool(obj.text_content)
     has_text.boolean = True
@@ -79,7 +74,7 @@ class SessionAdmin(admin.ModelAdmin):
 class EngagementLogAdmin(admin.ModelAdmin):
     list_display = [
         "participant_label", "course_title", "week_number",
-        "total_time", "video_time", "audio_time", "text_time",
+        "total_time", "video_time", "text_time",
         "video_open_count", "emoji_taps", "logged_at",
     ]
     list_filter = ["week_number", "logged_at"]
@@ -105,17 +100,13 @@ class EngagementLogAdmin(admin.ModelAdmin):
         return f"{m}:{s:02d}"
 
     def total_time(self, obj):
-        total = obj.video_time_seconds + obj.audio_time_seconds + obj.text_time_seconds
+        total = obj.video_time_seconds + obj.text_time_seconds
         return self._fmt_time(total)
     total_time.short_description = "Total Time"
 
     def video_time(self, obj):
         return self._fmt_time(obj.video_time_seconds)
     video_time.short_description = "Video Time"
-
-    def audio_time(self, obj):
-        return self._fmt_time(obj.audio_time_seconds)
-    audio_time.short_description = "Audio Time"
 
     def text_time(self, obj):
         return self._fmt_time(obj.text_time_seconds)

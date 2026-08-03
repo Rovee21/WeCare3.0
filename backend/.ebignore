@@ -1,0 +1,7 @@
+# Exclude local dev files from EB deployment
+docker-compose.yml
+.env
+.env.local
+__pycache__/
+*.pyc
+.elasticbeanstalk/logs/

@@ -1,3 +1,5 @@
+version: "3.9"
+
 services:
   db:
     image: postgres:15-alpine
@@ -9,19 +11,21 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
   web:
     build: .
-    command: ["sh", "-c", "chmod +x entrypoint.sh; if [ \"$${DJANGO_SETTINGS_MODULE}\" = \"wecare.settings.production\" ]; then ./entrypoint.sh; else python manage.py runserver 0.0.0.0:8000; fi"]
+    command: python manage.py runserver 0.0.0.0:8000
     volumes:
       - .:/app
     ports:
       - "8000:8000"
     environment:
-      - DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE:-wecare.settings.local}
-      - DATABASE_URL=${DATABASE_URL:-postgres://wecare:wecare_local@db:5432/wecare}
-      - SECRET_KEY=${SECRET_KEY:-local-dev-secret-key-change-in-production}
-      - DEBUG=${DEBUG:-True}
+      - DJANGO_SETTINGS_MODULE=wecare.settings.local
+      - DATABASE_URL=postgres://wecare:wecare_local@db:5432/wecare
+      - SECRET_KEY=local-dev-secret-key-change-in-production
+      - DEBUG=True
     depends_on:
       - db
+
 volumes:
   postgres_data:

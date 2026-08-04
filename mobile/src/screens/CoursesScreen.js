@@ -21,7 +21,14 @@ function groupByWeek(sessions) {
     .map(week => ({ title: `WEEK ${week}`, data: map[week] }));
 }
 
-function CheckCircle({ isRead, isCurrent }) {
+function CheckCircle({ isRead, isCurrent, isLocked }) {
+  if (isLocked) {
+    return (
+      <View style={[styles.circle, styles.circleLocked]}>
+        <Text style={styles.lockIcon}>🔒</Text>
+      </View>
+    );
+  }
   if (isRead) {
     return (
       <View style={[styles.circle, styles.circleRead]}>
@@ -57,7 +64,7 @@ export default function CoursesScreen({ navigation }) {
   const totalSessions = sessions.length;
   const completedSessions = sessions.filter(s => s.is_read || s.isRead).length;
   const remaining = totalSessions - completedSessions;
-  const firstUnreadId = sessions.find(s => !(s.is_read || s.isRead))?.id;
+  const firstUnreadId = sessions.find(s => !(s.is_read || s.isRead) && !s.locked)?.id;
 
   const sections = useMemo(() => {
     const filtered = query
@@ -67,19 +74,24 @@ export default function CoursesScreen({ navigation }) {
   }, [sessions, query]);
 
   const renderItem = useCallback(({ item }) => {
+    const isLocked = !!item.locked;
     const isRead = item.is_read || item.isRead;
-    const isCurrent = !isRead && item.id === firstUnreadId;
+    const isCurrent = !isLocked && !isRead && item.id === firstUnreadId;
     const mediaTypes = item.media_types || item.mediaTypes || [];
     const meta = mediaTypes[0] ?? '';
 
     return (
       <TouchableOpacity
-        style={styles.courseRow}
-        onPress={() => navigation.navigate('DailySession', { course: item })}
+        style={[styles.courseRow, isLocked && styles.courseRowLocked]}
+        onPress={() => {
+          if (isLocked) return;
+          navigation.navigate('DailySession', { course: item });
+        }}
+        disabled={isLocked}
       >
-        <CheckCircle isRead={isRead} isCurrent={isCurrent} />
+        <CheckCircle isRead={isRead} isCurrent={isCurrent} isLocked={isLocked} />
         <View style={styles.courseInfo}>
-          <Text style={styles.courseTitle}>{item.title}</Text>
+          <Text style={[styles.courseTitle, isLocked && styles.courseTitleLocked]}>{item.title}</Text>
           {meta ? <Text style={styles.courseMeta}>{meta}</Text> : null}
         </View>
       </TouchableOpacity>
@@ -232,8 +244,12 @@ const styles = StyleSheet.create({
   circleRead: { backgroundColor: Colors.primary },
   circleCurrent: { borderWidth: 2, borderColor: Colors.primary },
   circleDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.primary },
+  circleLocked: { backgroundColor: 'transparent' },
+  lockIcon: { fontSize: 13 },
   checkmark: { color: Colors.white, fontSize: 12, fontWeight: '700' },
   courseInfo: { flex: 1 },
+  courseRowLocked: { opacity: 0.5 },
   courseTitle: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary, marginBottom: 2 },
+  courseTitleLocked: { color: Colors.textSecondary },
   courseMeta: { fontSize: 12, color: Colors.textSecondary },
 });

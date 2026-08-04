@@ -99,8 +99,15 @@ export default function RootNavigator() {
 
   React.useEffect(() => {
     import('../services/authService').then(({ getStoredToken }) => {
-      getStoredToken().then(token => {
+      getStoredToken().then(async token => {
         setInitialRoute(token ? 'MainTabs' : 'Enrollment');
+        if (token) {
+          const { registerForPushNotifications, sendTokenToBackend } = await import('../services/notificationService');
+          const pushToken = await registerForPushNotifications();
+          if (pushToken) {
+            sendTokenToBackend(pushToken);
+          }
+        }
       });
     });
   }, []);

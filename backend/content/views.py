@@ -4,7 +4,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
-from .models import Session, ParticipantSession, EngagementLog
+from .models import Session, ParticipantSession, EngagementLog, SessionOverride
 from .serializers import SessionSerializer, EngagementLogSerializer, StatusResponseSerializer
 
 
@@ -16,16 +16,55 @@ def _get_participant(request):
 
 
 def _filter_sessions_for_participant(participant):
-    """Return sessions visible to this participant based on cohort targeting rules."""
+    """Return sessions visible to this participant, applying cohort targeting and then
+    date-based scheduling on top: future weeks are omitted entirely, past/completed weeks
+    are always fully visible, and within the current effective week a session is flagged
+    `locked` unless it passes the calendar-day gate AND every lower-day_number session in
+    that same week (for this participant's cohort) is already read — days must be
+    completed in order, regardless of how much calendar time has passed. An admin-set
+    SessionOverride takes priority over the day/sequential gate, but only within the
+    current effective week — it can't reach into past weeks (already unconditionally
+    unlocked) or future weeks (not shown at all)."""
     qs = Session.objects.filter(is_active=True)
+    effective_week = participant.effective_current_week()
+    unlocked_day = participant.unlocked_day_number()
+    read_ids = set(
+        ParticipantSession.objects.filter(participant=participant, is_read=True)
+        .values_list("session_id", flat=True)
+    )
+    overrides = dict(
+        SessionOverride.objects.filter(participant=participant)
+        .values_list("session_id", "override_type")
+    )
+
     # For each cohort dimension: if target is set, it must match; if blank, it's universal
     filtered = []
+    prior_days_read = True  # tracks lower day_numbers seen so far within the current week
     for session in qs.prefetch_related("resources"):
         g1_ok = not session.target_group1 or session.target_group1 == participant.group1
         g2_ok = not session.target_group2 or session.target_group2 == participant.group2
         g3_ok = not session.target_group3 or session.target_group3 == participant.group3
-        if g1_ok and g2_ok and g3_ok:
-            filtered.append(session)
+        if not (g1_ok and g2_ok and g3_ok):
+            continue
+
+        if session.week_number > effective_week:
+            continue
+
+        if session.week_number == effective_week:
+            override = overrides.get(session.id)
+            if override == SessionOverride.OVERRIDE_UNLOCK:
+                session.locked = False
+            elif override == SessionOverride.OVERRIDE_LOCK:
+                session.locked = True
+            else:
+                calendar_unlocked = session.day_number <= unlocked_day
+                session.locked = not (calendar_unlocked and prior_days_read)
+            if session.id not in read_ids:
+                prior_days_read = False
+        else:
+            session.locked = False
+
+        filtered.append(session)
     return filtered
 
 
@@ -59,8 +98,8 @@ def session_today(request):
         ).values_list("session_id", flat=True)
     )
 
-    # Find first unread session across all weeks
-    unread = [s for s in sessions if s.id not in read_ids]
+    # Find first unread, unlocked session across all weeks
+    unread = [s for s in sessions if s.id not in read_ids and not getattr(s, "locked", False)]
     today = unread[0] if unread else None
 
     if not today:

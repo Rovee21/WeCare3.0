@@ -88,12 +88,28 @@ class SessionCompletionInline(admin.TabularInline):
         return False
 
 
+class SessionOverrideInline(admin.TabularInline):
+    model = None  # set below
+    extra = 0
+    fields = ["session", "override_type", "set_by", "created_at"]
+    readonly_fields = ["set_by", "created_at"]
+    verbose_name = "Session Override"
+    verbose_name_plural = "Session Overrides"
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "session":
+            from content.models import Session
+            kwargs["queryset"] = Session.objects.filter(is_active=True).order_by("week_number", "day_number")
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
 def _setup_inlines():
     from journal.models import VoiceJournalEntry
-    from content.models import ParticipantSession, EngagementLog
+    from content.models import ParticipantSession, EngagementLog, SessionOverride
     VoiceJournalInline.model = VoiceJournalEntry
     SessionCompletionInline.model = ParticipantSession
     EngagementLogInline.model = EngagementLog
+    SessionOverrideInline.model = SessionOverride
 
 
 _setup_inlines()
@@ -115,7 +131,7 @@ class ParticipantAdmin(admin.ModelAdmin):
         "current_week_display", "latest_vj_stress",
         "user", "created_at", "updated_at",
     ]
-    inlines = []
+    inlines = [SessionOverrideInline]
     list_per_page = 50
 
     fieldsets = (
@@ -128,6 +144,12 @@ class ParticipantAdmin(admin.ModelAdmin):
         }),
         ("Study Progress", {
             "fields": ("enrolled_at", "current_week_display", "enrollment_week"),
+            "description": (
+                "Content unlocks automatically over time (7 days/week, plus all of a "
+                "week's sessions must be read to advance). To manually push a participant "
+                "ahead of that schedule, raise Enrollment Week — it only ever moves them "
+                "forward, never locks them out of progress they've already made."
+            ),
         }),
         ("Caregiver Profile", {
             "fields": ("adrd_relationship_group", "group3"),
@@ -150,19 +172,21 @@ class ParticipantAdmin(admin.ModelAdmin):
         }),
     )
 
-    actions = ["generate_code_only", "generate_and_email_code"]
+    actions = ["generate_code_only", "generate_and_email_code", "send_notification_to_selected"]
 
     def get_urls(self):
         urls = super().get_urls()
         custom = [
             path('<int:participant_id>/stats/', self.admin_site.admin_view(self.stats_view), name='participant_stats'),
             path('import-csv/', self.admin_site.admin_view(self.csv_import_view), name='participant_csv_import'),
+            path('send-notification/', self.admin_site.admin_view(self.send_notification_view), name='participant_send_notification'),
         ]
         return custom + urls
-    
+
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
         extra_context['import_csv_url'] = '/admin/participants/participant/import-csv/'
+        extra_context['send_notification_url'] = '/admin/participants/participant/send-notification/'
         return super().changelist_view(request, extra_context=extra_context)
     
     def csv_import_view(self, request):
@@ -324,11 +348,166 @@ class ParticipantAdmin(admin.ModelAdmin):
         }
         return TemplateResponse(request, 'admin/participant_stats.html', context)
 
+    def _send_notification_context(self, request, selected_participants, participant_ids_param, form_values=None):
+        if form_values is None:
+            form_values = {
+                'target_mode': 'selected' if selected_participants else 'single',
+                'timing': 'now',
+                'title': '',
+                'body': '',
+                'single_participant_id': '',
+                'cohort_group1': '',
+                'cohort_group2': '',
+                'cohort_group3': '',
+                'scheduled_for': '',
+            }
+        return {
+            **self.admin_site.each_context(request),
+            'title': 'Send Notification',
+            'participants': Participant.objects.all().order_by('email'),
+            'group1_choices': Participant.GROUP1_CHOICES,
+            'group2_choices': Participant.GROUP2_CHOICES,
+            'group3_choices': Participant.GROUP3_CHOICES,
+            'selected_participants': selected_participants,
+            'participant_ids_param': participant_ids_param,
+            'form_values': form_values,
+        }
+
+    def send_notification_view(self, request):
+        from django.shortcuts import redirect
+        from django.utils import timezone as dj_timezone
+        from django.utils.dateparse import parse_datetime
+        from content.models import NotificationLog
+        from participants.notifications import (
+            send_and_log_notification,
+            send_and_log_notification_bulk,
+            schedule_notification,
+            schedule_notification_bulk,
+        )
+
+        participant_ids_param = request.POST.get('participant_ids') or request.GET.get('participant_ids', '')
+        selected_ids = [int(x) for x in participant_ids_param.split(',') if x.strip().isdigit()]
+        selected_participants = list(Participant.objects.filter(pk__in=selected_ids)) if selected_ids else []
+
+        if request.method == 'POST':
+            target_mode = request.POST.get('target_mode', 'single')
+            title = request.POST.get('title', '').strip()
+            body = request.POST.get('body', '').strip()
+            timing = request.POST.get('timing', 'now')
+            scheduled_for_raw = request.POST.get('scheduled_for', '')
+
+            def render_with_error(error):
+                form_values = {
+                    'target_mode': target_mode,
+                    'timing': timing,
+                    'title': title,
+                    'body': body,
+                    'single_participant_id': request.POST.get('single_participant_id', ''),
+                    'cohort_group1': request.POST.get('cohort_group1', ''),
+                    'cohort_group2': request.POST.get('cohort_group2', ''),
+                    'cohort_group3': request.POST.get('cohort_group3', ''),
+                    'scheduled_for': scheduled_for_raw,
+                }
+                context = self._send_notification_context(
+                    request, selected_participants, participant_ids_param, form_values=form_values
+                )
+                context['error'] = error
+                return TemplateResponse(request, 'admin/participants/send_notification.html', context)
+
+            if not title or not body:
+                return render_with_error("Title and body are both required.")
+
+            if target_mode == 'single':
+                pid = request.POST.get('single_participant_id')
+                participants = list(Participant.objects.filter(pk=pid)) if pid else []
+            elif target_mode == 'cohort':
+                filters = {}
+                for field in ('group1', 'group2', 'group3'):
+                    value = request.POST.get(f'cohort_{field}', '')
+                    if value:
+                        filters[field] = value
+                participants = list(Participant.objects.filter(**filters))
+            elif target_mode == 'everyone':
+                participants = list(Participant.objects.all())
+            elif target_mode == 'selected':
+                participants = selected_participants
+            else:
+                participants = []
+
+            if not participants:
+                return render_with_error("No participants matched the selected target — nothing was sent.")
+
+            scheduled_dt = None
+            if timing == 'schedule':
+                scheduled_dt = parse_datetime(scheduled_for_raw)
+                if scheduled_dt and dj_timezone.is_naive(scheduled_dt):
+                    scheduled_dt = dj_timezone.make_aware(scheduled_dt)
+                if not scheduled_dt:
+                    return render_with_error("Please choose a valid date/time to schedule for.")
+
+            if timing == 'schedule':
+                if len(participants) == 1:
+                    logs = [schedule_notification(participants[0], title, body, scheduled_dt)]
+                else:
+                    logs = schedule_notification_bulk(participants, title, body, scheduled_dt)
+                pending = sum(1 for l in logs if l.status == NotificationLog.STATUS_PENDING)
+                sent_now = len(logs) - pending
+                when = dj_timezone.localtime(scheduled_dt).strftime('%b %d, %Y %I:%M %p')
+                if pending == len(logs):
+                    msg = f"Scheduled for {when} — will send to {len(logs)} participant(s) when processed."
+                else:
+                    msg = (
+                        f"{pending} scheduled for {when}; {sent_now} sent immediately "
+                        f"(their scheduled time had already passed)."
+                    )
+                self.message_user(request, msg)
+            else:
+                if len(participants) == 1:
+                    log = send_and_log_notification(participants[0], title, body)
+                    summary = {
+                        'sent': int(log.status == NotificationLog.STATUS_SENT),
+                        'skipped_no_token': int(log.status == NotificationLog.STATUS_NO_TOKEN),
+                        'failed': int(log.status == NotificationLog.STATUS_FAILED),
+                    }
+                else:
+                    summary = send_and_log_notification_bulk(participants, title, body)
+                msg = f"Sent to {summary['sent']} participant(s)"
+                extras = []
+                if summary['skipped_no_token']:
+                    extras.append(f"{summary['skipped_no_token']} skipped — no device token")
+                if summary['failed']:
+                    extras.append(f"{summary['failed']} failed")
+                if extras:
+                    msg += " (" + ", ".join(extras) + ")"
+                msg += "."
+                self.message_user(request, msg)
+
+            return self._redirect_to_changelist(request)
+
+        context = self._send_notification_context(request, selected_participants, participant_ids_param)
+        return TemplateResponse(request, 'admin/participants/send_notification.html', context)
+
+    @admin.action(description="Send Notification to selected")
+    def send_notification_to_selected(self, request, queryset):
+        from django.shortcuts import redirect
+        ids = ",".join(str(pk) for pk in queryset.values_list("pk", flat=True))
+        return redirect(f"/admin/participants/participant/send-notification/?participant_ids={ids}")
+
     def change_view(self, request, object_id, form_url='', extra_context=None):
         extra_context = extra_context or {}
         extra_context['show_history'] = False
         extra_context['stats_url'] = f'/admin/participants/participant/{object_id}/stats/'
         return super().change_view(request, object_id, form_url, extra_context)
+
+    def save_formset(self, request, form, formset, change):
+        instances = formset.save(commit=False)
+        for obj in instances:
+            if hasattr(obj, "set_by_id") and not obj.set_by_id:
+                obj.set_by = request.user
+            obj.save()
+        formset.save_m2m()
+        for obj in formset.deleted_objects:
+            obj.delete()
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)

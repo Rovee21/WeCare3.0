@@ -14,6 +14,7 @@ class SessionSerializer(serializers.ModelSerializer):
     week_label = serializers.ReadOnlyField()
     resources = AdditionalResourceSerializer(many=True, read_only=True)
     is_read = serializers.SerializerMethodField()
+    locked = serializers.SerializerMethodField()
 
     class Meta:
         model = Session
@@ -21,7 +22,7 @@ class SessionSerializer(serializers.ModelSerializer):
             "id", "title", "title_zh", "week_number", "day_number",
             "week_label", "media_types",
             "video_url", "audio_url", "text_content", "text_content_zh",
-            "resources", "is_read",
+            "resources", "is_read", "locked",
         ]
 
     @extend_schema_field(serializers.BooleanField)
@@ -34,6 +35,10 @@ class SessionSerializer(serializers.ModelSerializer):
             return ps.is_read
         except Exception:
             return False
+
+    @extend_schema_field(serializers.BooleanField)
+    def get_locked(self, obj):
+        return getattr(obj, "locked", False)
 
 
 class StatusResponseSerializer(serializers.Serializer):

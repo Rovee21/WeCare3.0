@@ -1,4 +1,5 @@
 import secrets
+from datetime import timedelta
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -75,6 +76,7 @@ class Participant(models.Model):
     enrolled_at = models.DateTimeField(null=True, blank=True)
     is_enrolled = models.BooleanField(default=False)
     enrollment_code = models.CharField(max_length=50, unique=True, null=True, blank=True)
+    push_token = models.CharField(max_length=255, blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -96,6 +98,72 @@ class Participant(models.Model):
         days_since = (timezone.now() - self.enrolled_at).days
         week = (days_since // 7) + 1
         return min(week, 7)
+
+    def _week_start(self, week_number: int):
+        return self.enrolled_at + timedelta(days=7 * (week_number - 1))
+
+    def _cohort_matched_session_ids(self, week_number: int) -> list[int]:
+        """Session ids in a given week that this participant's cohort would ever see.
+        Mirrors the cohort-matching in content.views._filter_sessions_for_participant —
+        needed here so week-completion gating only counts sessions this participant
+        could actually read, not ones targeted at a different cohort."""
+        from content.models import Session
+        ids = []
+        for s in Session.objects.filter(is_active=True, week_number=week_number).only(
+            "id", "target_group1", "target_group2", "target_group3"
+        ):
+            g1_ok = not s.target_group1 or s.target_group1 == self.group1
+            g2_ok = not s.target_group2 or s.target_group2 == self.group2
+            g3_ok = not s.target_group3 or s.target_group3 == self.group3
+            if g1_ok and g2_ok and g3_ok:
+                ids.append(s.id)
+        return ids
+
+    def automatic_gated_week(self) -> int:
+        """Calendar-and-completion-gated week number: starting at week 1, advances one
+        week at a time only once 7 calendar days have passed since that week's fixed
+        calendar start AND every session in it (for this participant's cohort) is read."""
+        if not self.enrolled_at:
+            return 1
+        from content.models import ParticipantSession
+
+        now = timezone.now()
+        week = 1
+        while week < 7:
+            days_elapsed = (now - self._week_start(week)).days
+            if days_elapsed < 7:
+                break
+            session_ids = self._cohort_matched_session_ids(week)
+            if not session_ids:
+                break
+            read_count = ParticipantSession.objects.filter(
+                participant=self, session_id__in=session_ids, is_read=True
+            ).count()
+            if read_count < len(session_ids):
+                break
+            week += 1
+        return week
+
+    def effective_current_week(self) -> int:
+        """The week whose sessions should be shown: the automatic calendar+completion
+        calculation, unless an admin has manually pushed enrollment_week further ahead."""
+        automatic = self.automatic_gated_week()
+        if self.enrollment_week and self.enrollment_week > automatic:
+            return self.enrollment_week
+        return automatic
+
+    def unlocked_day_number(self) -> int:
+        """Highest day_number (1-6) unlocked within the participant's effective current
+        week. A week reached via manual admin override has no calendar anchor to measure
+        days-into-week from, so it's granted fully unlocked."""
+        automatic = self.automatic_gated_week()
+        effective = self.effective_current_week()
+        if effective > automatic:
+            return 6
+        if not self.enrolled_at:
+            return 1
+        days_elapsed = (timezone.now() - self._week_start(effective)).days
+        return max(1, min(days_elapsed + 1, 6))
 
     def generate_enrollment_code(self):
         code = secrets.token_urlsafe(6).upper()[:8]

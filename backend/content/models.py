@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 
 
 class Session(models.Model):
@@ -127,17 +128,40 @@ class NotificationLog(models.Model):
     TYPE_DAILY = "daily"
     TYPE_UNREAD = "unread_reminder"
     TYPE_VJ = "vj_reminder"
+    TYPE_MANUAL = "manual"
     TYPE_CHOICES = [
         (TYPE_DAILY, "Daily Session"),
         (TYPE_UNREAD, "24hr Unread Reminder"),
         (TYPE_VJ, "Voice Journal Reminder"),
+        (TYPE_MANUAL, "Manual / Ad-hoc"),
+    ]
+
+    STATUS_PENDING = "pending"
+    STATUS_SENT = "sent"
+    STATUS_FAILED = "failed"
+    STATUS_NO_TOKEN = "skipped_no_token"
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pending"),
+        (STATUS_SENT, "Sent"),
+        (STATUS_FAILED, "Failed"),
+        (STATUS_NO_TOKEN, "Skipped — No Token"),
     ]
 
     participant = models.ForeignKey(
         "participants.Participant", on_delete=models.CASCADE, related_name="notification_logs"
     )
     notification_type = models.CharField(max_length=30, choices=TYPE_CHOICES)
+    title = models.CharField(max_length=200, blank=True)
     push_up = models.CharField(max_length=200, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_SENT)
+    # scheduled_for: null means "send immediately". A future datetime means this row was
+    # created as a pending notification awaiting send_scheduled_notifications to process it.
+    scheduled_for = models.DateTimeField(null=True, blank=True)
+    # sent_at (auto_now_add) is the row's creation time — for a scheduled notification that's
+    # when it was scheduled, not when it was delivered. actually_sent_at is set separately,
+    # at the moment a real send attempt is made (immediately for direct sends, or later by
+    # the management command for scheduled ones), regardless of whether that attempt succeeded.
+    actually_sent_at = models.DateTimeField(null=True, blank=True)
     sent_at = models.DateTimeField(auto_now_add=True)
     opened_at = models.DateTimeField(null=True, blank=True)
 
@@ -146,3 +170,28 @@ class NotificationLog(models.Model):
 
     def __str__(self):
         return f"{self.participant} — {self.notification_type} @ {self.sent_at:%Y-%m-%d}"
+
+
+class SessionOverride(models.Model):
+    """Per-participant, per-session manual unlock/lock, set by an admin — takes
+    priority over the automatic day/sequential-read gating for that one session."""
+    OVERRIDE_UNLOCK = "force_unlock"
+    OVERRIDE_LOCK = "force_lock"
+    OVERRIDE_CHOICES = [
+        (OVERRIDE_UNLOCK, "Force Unlock"),
+        (OVERRIDE_LOCK, "Force Lock"),
+    ]
+
+    participant = models.ForeignKey(
+        "participants.Participant", on_delete=models.CASCADE, related_name="session_overrides"
+    )
+    session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name="overrides")
+    override_type = models.CharField(max_length=20, choices=OVERRIDE_CHOICES)
+    set_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ["participant", "session"]
+
+    def __str__(self):
+        return f"{self.participant} — {self.session} — {self.get_override_type_display()}"

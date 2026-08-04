@@ -15,6 +15,11 @@ export default function EnrollmentScreen({ navigation }) {
     setLoading(true);
     try {
       await enrollWithCode(code.trim());
+      const { registerForPushNotifications, sendTokenToBackend } = await import('../services/notificationService');
+      const pushToken = await registerForPushNotifications();
+      if (pushToken) {
+        sendTokenToBackend(pushToken);
+      }
       navigation.replace('MainTabs');
     } catch {
       Alert.alert('Invalid code', 'Please check your code and try again.');

@@ -71,3 +71,24 @@ def delete_account(request):
     # Deleting the User cascades to the Token and Participant
     request.user.delete()
     return Response(status=status.HTTP_204_NO_CONTENT)
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def register_device(request):
+    participant = None
+    try:
+        participant = request.user.participant
+    except Exception:
+        pass
+
+    if not participant:
+        return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    push_token = request.data.get("push_token")
+    if not push_token:
+        return Response({"detail": "push_token is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    participant.push_token = push_token
+    participant.save(update_fields=["push_token"])
+
+    return Response({"status": "ok"})

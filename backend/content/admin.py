@@ -122,11 +122,11 @@ class EngagementLogAdmin(admin.ModelAdmin):
 @admin.register(NotificationLog)
 class NotificationLogAdmin(admin.ModelAdmin):
     list_display = [
-        "participant_label", "notification_type", "push_up",
-        "sent_at", "opened_at", "was_opened",
+        "participant_label", "notification_type", "title", "push_up", "status",
+        "scheduled_for", "sent_at", "actually_sent_at", "opened_at", "was_opened",
     ]
-    list_filter = ["notification_type", "sent_at"]
-    search_fields = ["participant__email", "push_up"]
+    list_filter = ["notification_type", "status", "sent_at"]
+    search_fields = ["participant__email", "title", "push_up"]
     date_hierarchy = "sent_at"
     list_per_page = 100
     readonly_fields = [f.name for f in NotificationLog._meta.fields]

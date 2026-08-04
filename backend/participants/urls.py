@@ -5,4 +5,5 @@ urlpatterns = [
     path("enroll/", views.enroll, name="enroll"),
     path("profile/", views.profile, name="profile"),
     path("account/", views.delete_account, name="delete_account"),
+    path("device/register/", views.register_device, name="register_device"),
 ]

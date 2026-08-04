@@ -31,3 +31,9 @@ CLAUDE.md
 
 # Local media files (dev only — production uses S3)
 backend/media/
+
+# CONTENT_SCHEDULING_HANDOFF.md
+# SEQUENTIAL_UNLOCK_ADDENDUM.md
+wecare3-notifications-0e536142e2b6.json
+
+Z_Instructions_Claude_Code/

@@ -10,6 +10,11 @@
 {% block object-tools-items %}
   {{ block.super }}
   <li>
+    <a href="{{ send_notification_url }}" class="historylink" style="background:#1F6B9A;color:#fff;padding:6px 14px;border-radius:4px;text-decoration:none;font-size:13px;">
+      ✉ Send Notification
+    </a>
+  </li>
+  <li>
     <a href="{{ import_csv_url }}" class="historylink" style="background:#1e8449;color:#fff;padding:6px 14px;border-radius:4px;text-decoration:none;font-size:13px;">
       ⬆ Import CSV
     </a>

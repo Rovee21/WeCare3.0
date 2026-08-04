@@ -11,7 +11,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
   web:
     build: .
-    command: ["sh", "-c", "if [ \"$${DJANGO_SETTINGS_MODULE}\" = \"wecare.settings.production\" ]; then ./entrypoint.sh; else python manage.py runserver 0.0.0.0:8000; fi"]
+    command: ["sh", "-c", "chmod +x entrypoint.sh; if [ \"$${DJANGO_SETTINGS_MODULE}\" = \"wecare.settings.production\" ]; then ./entrypoint.sh; else python manage.py runserver 0.0.0.0:8000; fi"]
     volumes:
       - .:/app
     ports:

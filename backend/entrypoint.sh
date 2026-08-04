@@ -23,6 +23,7 @@ if url:
         conn.close()
     except Exception as e:
         print('DB create error:', e)
+        raise
 "
 
 echo "==> Running migrations..."

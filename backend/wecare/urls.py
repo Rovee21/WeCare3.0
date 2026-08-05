@@ -1,8 +1,21 @@
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.contrib.admin import AdminSite
+from django.http import HttpResponseRedirect
 from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+
+
+class WeCareAdminSite(AdminSite):
+    def login(self, request, extra_context=None):
+        response = super().login(request, extra_context)
+        if isinstance(response, HttpResponseRedirect):
+            return HttpResponseRedirect('/admin/')
+        return response
+
+
+admin.site.__class__ = WeCareAdminSite
 
 admin.site.site_header = "WeCare Research Admin"
 admin.site.site_title = "WeCare Admin"

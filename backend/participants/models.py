@@ -94,14 +94,49 @@ class Participant(models.Model):
 
     @property
     def current_week_number(self) -> int:
-        if not self.enrolled_at:
-            return 1
-        days_since = (timezone.now() - self.enrolled_at).days
-        week = (days_since // 7) + 1
-        return min(week, 7)
+        """Cohort-anchored week number: 0 while waitlisted (cohort hasn't started, or has
+        no CohortStartDate yet), otherwise the same value automatic_gated_week() computes."""
+        if self.is_waitlisted():
+            return 0
+        return self.automatic_gated_week()
+
+    def _cohort_start_date(self):
+        """This participant's cohort's program_start_date, or None if no CohortStartDate
+        row exists yet for their cohort."""
+        try:
+            return CohortStartDate.objects.get(cohort=self.cohort).program_start_date
+        except CohortStartDate.DoesNotExist:
+            return None
+
+    def is_waitlisted(self) -> bool:
+        """True if the participant's cohort hasn't started yet — either no CohortStartDate
+        has been set for their cohort at all, or its program_start_date is still in the
+        future. A waitlisted participant sees no content, regardless of enrolled_at."""
+        start_date = self._cohort_start_date()
+        if start_date is None:
+            return True
+        return timezone.localdate() < start_date
+
+    def program_start_date(self):
+        """The date this participant's cohort's content schedule starts (Week 1 Day 1),
+        or None if no CohortStartDate has been set for their cohort yet."""
+        return self._cohort_start_date()
+
+    def _schedule_anchor(self):
+        """Datetime anchor ('day 0') for content-schedule calculations: midnight local
+        time on the participant's cohort's program_start_date. None while waitlisted —
+        callers should check is_waitlisted() before relying on this."""
+        if self.is_waitlisted():
+            return None
+        from datetime import datetime
+        naive_midnight = datetime.combine(self._cohort_start_date(), datetime.min.time())
+        return timezone.make_aware(naive_midnight)
 
     def _week_start(self, week_number: int):
-        return self.enrolled_at + timedelta(days=7 * (week_number - 1))
+        anchor = self._schedule_anchor()
+        if anchor is None:
+            return None
+        return anchor + timedelta(days=7 * (week_number - 1))
 
     def _cohort_matched_session_ids(self, week_number: int) -> list[int]:
         """Session ids in a given week that this participant's cohort would ever see.
@@ -123,8 +158,10 @@ class Participant(models.Model):
     def automatic_gated_week(self) -> int:
         """Calendar-and-completion-gated week number: starting at week 1, advances one
         week at a time only once 7 calendar days have passed since that week's fixed
-        calendar start AND every session in it (for this participant's cohort) is read."""
-        if not self.enrolled_at:
+        calendar start AND every session in it (for this participant's cohort) is read.
+        Anchored to the participant's cohort's program_start_date (shared by everyone in
+        that cohort), not their individual enrolled_at."""
+        if self.is_waitlisted():
             return 1
         from content.models import ParticipantSession
 
@@ -161,7 +198,7 @@ class Participant(models.Model):
         effective = self.effective_current_week()
         if effective > automatic:
             return 6
-        if not self.enrolled_at:
+        if self.is_waitlisted():
             return 1
         days_elapsed = (timezone.now() - self._week_start(effective)).days
         return max(1, min(days_elapsed + 1, 6))
@@ -174,3 +211,13 @@ class Participant(models.Model):
         self.enrollment_code = code
         self.save(update_fields=["enrollment_code"])
         return code
+
+
+class CohortStartDate(models.Model):
+    cohort = models.PositiveSmallIntegerField(unique=True, help_text="Matches Participant.cohort")
+    program_start_date = models.DateField(help_text="The date this cohort's Week 1 Day 1 content unlocks for everyone in it, regardless of individual signup date.")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Cohort {self.cohort} — starts {self.program_start_date}"

@@ -40,6 +40,11 @@
       "text": "Text"
     }
   },
+  "waitlist": {
+    "title": "You're on the waitlist",
+    "messageWithDate": "Your program starts on {{date}}",
+    "messageSoon": "Your program start date will be announced soon"
+  },
   "contactUs": {
     "title": "Contact Us",
     "coordinator": "Coordinator",

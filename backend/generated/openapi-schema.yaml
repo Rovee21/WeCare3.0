@@ -439,12 +439,22 @@ components:
           type: string
           format: date-time
           nullable: true
+        is_waitlisted:
+          type: boolean
+          readOnly: true
+        program_start_date:
+          type: string
+          format: date
+          nullable: true
+          readOnly: true
       required:
       - adrd_relationship_group
       - group1
       - group2
       - group3
+      - is_waitlisted
       - participant_id
+      - program_start_date
       - week_number
     ResourceTypeEnum:
       enum:

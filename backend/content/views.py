@@ -24,7 +24,11 @@ def _filter_sessions_for_participant(participant):
     completed in order, regardless of how much calendar time has passed. An admin-set
     SessionOverride takes priority over the day/sequential gate, but only within the
     current effective week — it can't reach into past weeks (already unconditionally
-    unlocked) or future weeks (not shown at all)."""
+    unlocked) or future weeks (not shown at all). A waitlisted participant (their cohort's
+    program_start_date hasn't arrived yet, or isn't set at all) sees no sessions at all."""
+    if participant.is_waitlisted():
+        return []
+
     qs = Session.objects.filter(is_active=True)
     effective_week = participant.effective_current_week()
     unlocked_day = participant.unlocked_day_number()

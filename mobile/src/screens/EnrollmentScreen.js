@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image } fro
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { enrollWithCode } from '../services/authService';
+import { getUserProfile } from '../services/userService';
 import { Colors } from '../constants/colors';
 
 export default function EnrollmentScreen({ navigation }) {
@@ -20,7 +21,20 @@ export default function EnrollmentScreen({ navigation }) {
       if (pushToken) {
         sendTokenToBackend(pushToken);
       }
-      navigation.replace('MainTabs');
+
+      // A brand-new enrollee can already be waitlisted (their cohort's program_start_date
+      // hasn't arrived yet) — route them straight to the waitlist screen, same as a
+      // returning waitlisted participant reopening the app.
+      let route = 'MainTabs';
+      try {
+        const profile = await getUserProfile();
+        if (profile?.is_waitlisted) {
+          route = 'Waitlist';
+        }
+      } catch (e) {
+        // fall back to MainTabs if the profile check fails
+      }
+      navigation.replace(route);
     } catch {
       Alert.alert('Invalid code', 'Please check your code and try again.');
     } finally {

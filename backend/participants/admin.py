@@ -4,7 +4,7 @@ from django.contrib import admin
 from django.core.mail import send_mail
 from django.utils.html import format_html
 from django.db.models import Count, Max, Q
-from .models import Participant
+from .models import Participant, CohortStartDate
 import csv
 import io
 import re
@@ -738,3 +738,8 @@ class ParticipantAdmin(admin.ModelAdmin):
             p.generate_enrollment_code()
             count += 1
         self.message_user(request, f"Generated device transfer code(s) for {count} participant(s).")
+
+
+@admin.register(CohortStartDate)
+class CohortStartDateAdmin(admin.ModelAdmin):
+    list_display = ["cohort", "program_start_date", "updated_at"]

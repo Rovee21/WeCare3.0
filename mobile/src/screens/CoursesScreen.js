@@ -101,7 +101,7 @@ export default function CoursesScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={() => navigation.navigate('Home')}
           style={{ alignSelf: 'flex-start', marginBottom: 8 }}
         >

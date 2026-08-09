@@ -37,6 +37,11 @@
       "text": "文字"
     }
   },
+  "waitlist": {
+    "title": "您已在等候名单中",
+    "messageWithDate": "您的项目将于{{date}}开始",
+    "messageSoon": "项目开始日期即将公布"
+  },
   "contactUs": {
     "title": "联系我们",
     "coordinator": "协调员",

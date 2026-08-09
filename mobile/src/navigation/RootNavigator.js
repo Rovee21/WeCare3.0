@@ -11,12 +11,14 @@ import SettingsScreen from '../screens/SettingsScreen';
 import ContactUsScreen from '../screens/ContactUsScreen';
 import VoiceJournalScreen from '../screens/VoiceJournalScreen';
 import SurveyScreen from '../screens/SurveyScreen';
+import WaitlistScreen from '../screens/WaitlistScreen';
 import { Colors } from '../constants/colors';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 const CoursesStack = createNativeStackNavigator();
 const JournalStack = createNativeStackNavigator();
+const WaitlistStack = createNativeStackNavigator();
 
 function CoursesNavigator() {
   return (
@@ -33,6 +35,15 @@ function JournalNavigator() {
       <JournalStack.Screen name="VoiceJournal" component={VoiceJournalScreen} />
       <JournalStack.Screen name="Survey" component={SurveyScreen} />
     </JournalStack.Navigator>
+  );
+}
+
+function WaitlistNavigator() {
+  return (
+    <WaitlistStack.Navigator screenOptions={{ headerShown: false }}>
+      <WaitlistStack.Screen name="WaitlistHome" component={WaitlistScreen} />
+      <WaitlistStack.Screen name="Contact" component={ContactUsScreen} />
+    </WaitlistStack.Navigator>
   );
 }
 
@@ -100,13 +111,30 @@ export default function RootNavigator() {
   React.useEffect(() => {
     import('../services/authService').then(({ getStoredToken }) => {
       getStoredToken().then(async token => {
-        setInitialRoute(token ? 'MainTabs' : 'Enrollment');
-        if (token) {
-          const { registerForPushNotifications, sendTokenToBackend } = await import('../services/notificationService');
-          const pushToken = await registerForPushNotifications();
-          if (pushToken) {
-            sendTokenToBackend(pushToken);
+        if (!token) {
+          setInitialRoute('Enrollment');
+          return;
+        }
+
+        // Waitlisted participants get a dedicated screen instead of the normal tab
+        // experience — check the live profile before deciding where to route.
+        let route = 'MainTabs';
+        try {
+          const { getUserProfile } = await import('../services/userService');
+          const profile = await getUserProfile();
+          if (profile?.is_waitlisted) {
+            route = 'Waitlist';
           }
+        } catch (e) {
+          // If the profile check fails (e.g. transient network error), fall back to
+          // MainTabs rather than blocking app access entirely.
+        }
+        setInitialRoute(route);
+
+        const { registerForPushNotifications, sendTokenToBackend } = await import('../services/notificationService');
+        const pushToken = await registerForPushNotifications();
+        if (pushToken) {
+          sendTokenToBackend(pushToken);
         }
       });
     });
@@ -118,6 +146,7 @@ export default function RootNavigator() {
     <Stack.Navigator initialRouteName={initialRoute} screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Enrollment" component={EnrollmentScreen} />
       <Stack.Screen name="MainTabs" component={MainTabs} />
+      <Stack.Screen name="Waitlist" component={WaitlistNavigator} />
     </Stack.Navigator>
   );
 }

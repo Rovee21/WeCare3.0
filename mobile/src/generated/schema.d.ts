@@ -286,6 +286,9 @@ export interface components {
             readonly week_number: number;
             /** Format: date-time */
             enrolled_at?: string | null;
+            readonly is_waitlisted: boolean;
+            /** Format: date */
+            readonly program_start_date: string | null;
         };
         /**
          * @description * `Video` - Video

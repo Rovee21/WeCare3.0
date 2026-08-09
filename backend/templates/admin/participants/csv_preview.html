@@ -37,7 +37,7 @@
           <select name="map_{{ field_key }}">
             <option value="">— skip —</option>
             {% for h in headers %}
-            <option value="{{ h }}" {% if h|lower == field_key|lower %}selected{% endif %}>{{ h }}</option>
+            <option value="{{ h }}" {% if h == best_guess|get_item:field_key %}selected{% endif %}>{{ h }}</option>
             {% endfor %}
           </select>
         </div>

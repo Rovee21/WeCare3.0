@@ -17,11 +17,11 @@
 <div class="upload-box">
   <a class="back-btn" href="/admin/participants/participant/">← Back to Participants</a>
   <div class="upload-card">
-    <h2>Import Participants from CSV</h2>
-    <p>Upload a CSV file exported from Qualtrics or any survey tool. You'll map columns on the next screen.</p>
+    <h2>Import Participants from CSV or Excel</h2>
+    <p>Upload a CSV or Excel (.xlsx) file exported from Qualtrics or any survey tool. You'll map columns on the next screen.</p>
     <form method="post" enctype="multipart/form-data">
       {% csrf_token %}
-      <input type="file" name="csv_file" accept=".csv" class="file-input" required>
+      <input type="file" name="csv_file" accept=".csv,.xlsx" class="file-input" required>
       <button type="submit" class="submit-btn">Upload & Preview →</button>
     </form>
     <div class="hint">

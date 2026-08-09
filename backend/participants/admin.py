@@ -7,7 +7,88 @@ from django.db.models import Count, Max, Q
 from .models import Participant
 import csv
 import io
+import re
+import openpyxl
 from django.http import HttpResponse
+
+# Synonym lists used to pre-select the most likely dropdown option on the CSV/Excel
+# import mapping screen. Matching is done against a normalized (lowercased,
+# punctuation/whitespace-stripped) form of both the uploaded header and each synonym,
+# so "E-mail", "e_mail", and "Email Address" all resolve to the same field.
+# NOTE: 'group1' synonyms like "Study Cohort" are intentionally kept separate from
+# the 'cohort' field's synonyms (recruitment wave) — these are different concepts.
+FIELD_SYNONYMS = {
+    'email': ['email', 'email address', 'e-mail', 'emailaddress', 'q_email'],
+    'first_name': ['first name', 'firstname', 'first', 'given name'],
+    'last_name': ['last name', 'lastname', 'last', 'surname', 'family name'],
+    'label': ['label', 'display name', 'nickname'],
+    'gender': ['gender', 'sex'],
+    'age': ['age', 'participant age'],
+    'relationship': ['relationship', 'care relationship', 'relationship to care recipient', 'adrd relationship'],
+    'group1': ['group1', 'group 1', 'study cohort', 'intervention group', 'cohort assignment'],
+    'group2': ['group2', 'group 2', 'condition group', 'severity', 'adrd stage', 'stage', 'disease stage'],
+    'group3': ['group3', 'group 3', 'stress group'],
+    'cohort': ['cohort', 'recruitment cohort', 'recruitment wave', 'cohort number'],
+}
+
+
+def _normalize_header(value):
+    return re.sub(r'[^a-z0-9]', '', (value or '').lower())
+
+
+_NORMALIZED_FIELD_SYNONYMS = {
+    field: {_normalize_header(s) for s in synonyms} | {_normalize_header(field)}
+    for field, synonyms in FIELD_SYNONYMS.items()
+}
+
+
+def compute_auto_mapping(headers):
+    """For each internal field key, return the first uploaded header whose normalized
+    form matches one of its synonyms, or '' if nothing matches."""
+    guess = {}
+    for field_key, synonym_set in _NORMALIZED_FIELD_SYNONYMS.items():
+        match = ''
+        for h in headers:
+            if _normalize_header(h) in synonym_set:
+                match = h
+                break
+        guess[field_key] = match
+    return guess
+
+
+def parse_uploaded_participants_file(uploaded_file):
+    """Parse a .csv or .xlsx upload into (headers, rows) where rows is a list of dicts
+    keyed by header — the same shape csv.DictReader produces, regardless of format."""
+    name = (uploaded_file.name or '').lower()
+    if name.endswith('.xlsx'):
+        wb = openpyxl.load_workbook(uploaded_file, read_only=True, data_only=True)
+        ws = wb.active
+        rows_iter = ws.iter_rows(values_only=True)
+        try:
+            headers = [str(h).strip() if h is not None else '' for h in next(rows_iter)]
+        except StopIteration:
+            headers = []
+        rows = []
+        for raw_row in rows_iter:
+            if raw_row is None or all(v is None for v in raw_row):
+                continue
+            row_dict = {}
+            for i, header in enumerate(headers):
+                if not header:
+                    continue
+                val = raw_row[i] if i < len(raw_row) else None
+                if isinstance(val, float) and val.is_integer():
+                    val = int(val)  # e.g. Age/Cohort read as 45.0 -> "45", not "45.0"
+                row_dict[header] = '' if val is None else str(val)
+            rows.append(row_dict)
+        return headers, rows
+    else:
+        decoded = uploaded_file.read().decode('utf-8-sig')
+        reader = csv.DictReader(io.StringIO(decoded))
+        rows = list(reader)
+        headers = reader.fieldnames or []
+        return headers, rows
+
 
 class VoiceJournalInline(admin.TabularInline):
     model = None  # set below
@@ -222,7 +303,6 @@ class ParticipantAdmin(admin.ModelAdmin):
                 'group1':                  request.POST.get('map_group1', ''),
                 'group2':                  request.POST.get('map_group2', ''),
                 'group3':                  request.POST.get('map_group3', ''),
-                'adrd_stage':              request.POST.get('map_adrd_stage', ''),
                 'cohort':                  request.POST.get('map_cohort', ''),
             }
 
@@ -249,7 +329,6 @@ class ParticipantAdmin(admin.ModelAdmin):
                         group1=row.get(mapping['group1'], '').strip().lower()[:20] or 'intervention',
                         group2=row.get(mapping['group2'], '').strip().lower()[:20] or 'moderate',
                         group3=row.get(mapping['group3'], '').strip().lower()[:20] or 'low',
-                        adrd_stage=row.get(mapping['adrd_stage'], '').strip().lower()[:20],
                         cohort=int(cohort_val) if cohort_val.isdigit() else 1,
                         language='en',
                         enrollment_week=1,
@@ -268,12 +347,19 @@ class ParticipantAdmin(admin.ModelAdmin):
 
         # Step 2: Preview (has file upload)
         if request.method == 'POST' and 'csv_file' in request.FILES:
-            csv_file = request.FILES['csv_file']
-            decoded = csv_file.read().decode('utf-8-sig')
-            reader = csv.DictReader(io.StringIO(decoded))
-            rows = list(reader)
-            headers = reader.fieldnames
-            request.session['csv_import_data'] = decoded
+            uploaded_file = request.FILES['csv_file']
+            headers, rows = parse_uploaded_participants_file(uploaded_file)
+
+            # Re-serialize to canonical CSV text regardless of source format, so Step 3
+            # can keep reading from session via the exact same csv.DictReader path.
+            buf = io.StringIO()
+            writer = csv.DictWriter(buf, fieldnames=headers)
+            writer.writeheader()
+            for row in rows:
+                writer.writerow({h: row.get(h, '') for h in headers})
+            request.session['csv_import_data'] = buf.getvalue()
+
+            best_guess = compute_auto_mapping(headers)
 
             context = {
                 **self.admin_site.each_context(request),
@@ -281,6 +367,7 @@ class ParticipantAdmin(admin.ModelAdmin):
                 'headers': headers,
                 'rows': rows[:5],
                 'all_rows': rows,
+                'best_guess': best_guess,
                 'field_map': {
                     'email': 'Email *',
                     'first_name': 'First Name',
@@ -288,11 +375,10 @@ class ParticipantAdmin(admin.ModelAdmin):
                     'label': 'Label / Display Name',
                     'gender': 'Gender',
                     'age': 'Age',
-                    'relationship': 'Care Relationship',
-                    'group1': 'Study Cohort (intervention/control)',
-                    'group2': 'Condition Group (mild/moderate/severe)',
-                    'group3': 'Stress Group (high/low)',
-                    'adrd_stage': 'ADRD Stage',
+                    'relationship': 'Care Relationship/ADRD relationship group - Spouse, Children/Adult Child, Other Relative',
+                    'group1': 'Group1 - Study Cohort (Intervention/Control)',
+                    'group2': 'Group2 - ADRD Stage (Mild/Moderate/Severe)',
+                    'group3': 'Group3 - Stress Group (High/Low Stress)',
                     'cohort': 'Cohort / Recruitment Wave',
                 },
             }

@@ -2,6 +2,7 @@ module.exports = {
   expo: {
     name: "WeCare3.0",
     slug: "wecare3",
+    icon: "./assets/icon.png",
     version: "1.0.0",
     orientation: "portrait",
     userInterfaceStyle: "light",
@@ -14,7 +15,7 @@ module.exports = {
       policy: "appVersion"
     },
     android: {
-      package: "com.wecaremason.wecare3",
+      package: "com.wecaremason.wecare",
       googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? "./google-services.json",
       permissions: [
         "android.permission.RECORD_AUDIO",
@@ -22,7 +23,11 @@ module.exports = {
       ]
     },
     ios: {
-      bundleIdentifier: "com.wecaremason.wecare3"
+      bundleIdentifier: "com.wecaremason.wecare",
+      supportsTablet: false,
+      infoPlist: {
+        ITSAppUsesNonExemptEncryption: false
+      }
     },
     plugins: [
       "expo-secure-store",
@@ -36,6 +41,7 @@ module.exports = {
       eas: {
         projectId: "1edee5d5-fd18-4c6f-ba6d-96115a664d55"
       }
-    }
+    },
+    "owner": "lad_y"
   }
 };

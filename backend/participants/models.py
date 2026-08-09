@@ -71,6 +71,7 @@ class Participant(models.Model):
     group2 = models.CharField(max_length=20, choices=GROUP2_CHOICES)
     group3 = models.CharField(max_length=20, choices=GROUP3_CHOICES)
     adrd_relationship_group = models.CharField(max_length=20, choices=RELATIONSHIP_CHOICES)
+    cohort = models.PositiveSmallIntegerField(default=1, help_text="Recruitment cohort/wave number (e.g., 1 = Cohort 1, 2 = Cohort 2). Represents which recruitment area/wave the participant belongs to — independent of group1/group2/group3.")
 
     enrollment_week = models.PositiveSmallIntegerField(default=1)
     enrolled_at = models.DateTimeField(null=True, blank=True)
@@ -166,7 +167,10 @@ class Participant(models.Model):
         return max(1, min(days_elapsed + 1, 6))
 
     def generate_enrollment_code(self):
-        code = secrets.token_urlsafe(6).upper()[:8]
+        while True:
+            code = f"{secrets.randbelow(100_000):05d}"
+            if not Participant.objects.exclude(pk=self.pk).filter(enrollment_code=code).exists():
+                break
         self.enrollment_code = code
         self.save(update_fields=["enrollment_code"])
         return code

@@ -7,6 +7,12 @@ module.exports = {
     userInterfaceStyle: "light",
     assetBundlePatterns: ["**/*"],
     newArchEnabled: true,
+    updates: {
+      url: "https://u.expo.dev/1edee5d5-fd18-4c6f-ba6d-96115a664d55"
+    },
+    runtimeVersion: {
+      policy: "appVersion"
+    },
     android: {
       package: "com.wecaremason.wecare3",
       googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? "./google-services.json",
@@ -22,9 +28,9 @@ module.exports = {
       "expo-secure-store",
       "expo-audio",
       "expo-video",
-      [
-        "expo-notifications"
-      ]
+      // [
+      //   "expo-notifications"
+      // ]
     ],
     extra: {
       eas: {

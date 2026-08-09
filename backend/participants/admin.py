@@ -119,12 +119,13 @@ _setup_inlines()
 class ParticipantAdmin(admin.ModelAdmin):
     list_display = [
         "participant_id_display", "email", "language",
-        "group1", "group2", "group3",
+        "cohort", "group1", "group2", "group3",
         "adrd_relationship_group",
         "is_enrolled", "current_week_display",
         "sessions_completed", "vj_count", "last_active",
         "code_status",
     ]
+    list_filter = ["cohort"]
     search_fields = ["email"]
     readonly_fields = [
         "participant_id_display", "is_enrolled", "enrolled_at",
@@ -159,6 +160,13 @@ class ParticipantAdmin(admin.ModelAdmin):
             "fields": ("group1", "group2"),
             "description": "Set from offline baseline survey data. Do not change after enrollment.",
         }),
+        ("Recruitment Cohort", {
+            "fields": ("cohort",),
+            "description": (
+                "Which recruitment wave this participant was enrolled under (Cohort 1, 2, ...). "
+                "Unrelated to the clinical Study/Condition/Stress groups above."
+            ),
+        }),
         ("Clinical Indicators (from Voice Journal)", {
             "fields": ("latest_vj_stress",),
         }),
@@ -172,7 +180,12 @@ class ParticipantAdmin(admin.ModelAdmin):
         }),
     )
 
-    actions = ["generate_code_only", "generate_and_email_code", "send_notification_to_selected"]
+    actions = [
+        "generate_code_only",
+        "generate_and_email_code",
+        "generate_device_transfer_code",
+        "send_notification_to_selected",
+    ]
 
     def get_urls(self):
         urls = super().get_urls()
@@ -210,6 +223,7 @@ class ParticipantAdmin(admin.ModelAdmin):
                 'group2':                  request.POST.get('map_group2', ''),
                 'group3':                  request.POST.get('map_group3', ''),
                 'adrd_stage':              request.POST.get('map_adrd_stage', ''),
+                'cohort':                  request.POST.get('map_cohort', ''),
             }
 
             created, skipped, errors = 0, 0, []
@@ -223,6 +237,7 @@ class ParticipantAdmin(admin.ModelAdmin):
                     continue
                 try:
                     age_val = row.get(mapping['age'], '').strip()
+                    cohort_val = row.get(mapping['cohort'], '').strip()
                     p = Participant(
                         email=email,
                         first_name=row.get(mapping['first_name'], '').strip(),
@@ -235,6 +250,7 @@ class ParticipantAdmin(admin.ModelAdmin):
                         group2=row.get(mapping['group2'], '').strip().lower()[:20] or 'moderate',
                         group3=row.get(mapping['group3'], '').strip().lower()[:20] or 'low',
                         adrd_stage=row.get(mapping['adrd_stage'], '').strip().lower()[:20],
+                        cohort=int(cohort_val) if cohort_val.isdigit() else 1,
                         language='en',
                         enrollment_week=1,
                     )
@@ -277,6 +293,7 @@ class ParticipantAdmin(admin.ModelAdmin):
                     'group2': 'Condition Group (mild/moderate/severe)',
                     'group3': 'Stress Group (high/low)',
                     'adrd_stage': 'ADRD Stage',
+                    'cohort': 'Cohort / Recruitment Wave',
                 },
             }
             return TemplateResponse(request, 'admin/participants/csv_preview.html', context)
@@ -619,3 +636,11 @@ class ParticipantAdmin(admin.ModelAdmin):
         if skipped:
             msg += f" Skipped {skipped} already-enrolled participant(s)."
         self.message_user(request, msg)
+
+    @admin.action(description="Generate device transfer code")
+    def generate_device_transfer_code(self, request, queryset):
+        count = 0
+        for p in queryset:
+            p.generate_enrollment_code()
+            count += 1
+        self.message_user(request, f"Generated device transfer code(s) for {count} participant(s).")

@@ -21,25 +21,34 @@ def enroll(request):
     code = serializer.validated_data["code"].strip().upper()
 
     try:
-        participant = Participant.objects.get(enrollment_code=code, is_enrolled=False)
+        participant = Participant.objects.get(enrollment_code=code)
     except Participant.DoesNotExist:
         return Response(
             {"detail": "Invalid or already used enrollment code."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    username = f"participant_{participant.pk}"
-    user, _ = User.objects.get_or_create(username=username)
-    user.email = participant.email
-    user.save()
+    if participant.is_enrolled:
+        # Device transfer: log the existing account into a new device rather than
+        # creating a duplicate. Old and new devices intentionally share the same
+        # token for now (stakeholder decision) — revisit if old-device logout is
+        # wanted later.
+        participant.enrollment_code = None  # single-use: invalidate immediately
+        participant.save(update_fields=["enrollment_code"])
+        token = Token.objects.get(user=participant.user)
+    else:
+        username = f"participant_{participant.pk}"
+        user, _ = User.objects.get_or_create(username=username)
+        user.email = participant.email
+        user.save()
 
-    participant.user = user
-    participant.is_enrolled = True
-    participant.enrolled_at = timezone.now()
-    participant.enrollment_code = None  # single-use: invalidate immediately
-    participant.save(update_fields=["user", "is_enrolled", "enrolled_at", "enrollment_code"])
+        participant.user = user
+        participant.is_enrolled = True
+        participant.enrolled_at = timezone.now()
+        participant.enrollment_code = None  # single-use: invalidate immediately
+        participant.save(update_fields=["user", "is_enrolled", "enrolled_at", "enrollment_code"])
 
-    token, _ = Token.objects.get_or_create(user=user)
+        token, _ = Token.objects.get_or_create(user=user)
 
     return Response({
         "token": token.key,

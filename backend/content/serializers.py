@@ -52,7 +52,7 @@ class EngagementLogSerializer(serializers.ModelSerializer):
             "session_id",
             "course_title", "week_number",
             "video_open_count", "video_last_time",
-            "video_time_seconds", "audio_time_seconds", "text_time_seconds",
+            "video_time_seconds", "video_watch_seconds", "audio_time_seconds", "text_time_seconds",
             "read_count", "read_minutes",
             "interactive_feature_count", "interactive_feature_comment",
             "infographic_open_count", "tracking_download_count",

@@ -159,6 +159,7 @@ def log_engagement(request):
     update_fields = []
 
     video_time = int(request.data.get("video_time_seconds", 0))
+    video_watch = int(request.data.get("video_watch_seconds", 0))
     audio_time = int(request.data.get("audio_time_seconds", 0))
     text_time  = int(request.data.get("text_time_seconds", 0))
     video_opens = int(request.data.get("video_open_count", 0))
@@ -167,6 +168,9 @@ def log_engagement(request):
     if video_time:
         log.video_time_seconds = F("video_time_seconds") + video_time
         update_fields.append("video_time_seconds")
+    if video_watch:
+        log.video_watch_seconds = F("video_watch_seconds") + video_watch
+        update_fields.append("video_watch_seconds")
     if audio_time:
         log.audio_time_seconds = F("audio_time_seconds") + audio_time
         update_fields.append("audio_time_seconds")

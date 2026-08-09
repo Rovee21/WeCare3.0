@@ -116,13 +116,13 @@ class EngagementLogInline(admin.TabularInline):
     fields = [
         "week_number", "course_title",
         "total_time_display",
-        "video_time_display", "text_time_display",
+        "video_time_display", "video_watch_display", "text_time_display",
         "video_open_count", "emoji_taps_display", "logged_at",
     ]
     readonly_fields = [
         "week_number", "course_title",
         "total_time_display",
-        "video_time_display", "text_time_display",
+        "video_time_display", "video_watch_display", "text_time_display",
         "video_open_count", "emoji_taps_display", "logged_at",
     ]
     ordering = ["-logged_at"]
@@ -143,6 +143,10 @@ class EngagementLogInline(admin.TabularInline):
     def video_time_display(self, obj):
         return self._fmt(obj.video_time_seconds)
     video_time_display.short_description = "Video Time"
+
+    def video_watch_display(self, obj):
+        return self._fmt(obj.video_watch_seconds)
+    video_watch_display.short_description = "Video Watch Time"
 
     def text_time_display(self, obj):
         return self._fmt(obj.text_time_seconds)
@@ -406,6 +410,7 @@ class ParticipantAdmin(admin.ModelAdmin):
 
         totals = raw_logs.aggregate(
             total_video=Sum('video_time_seconds'),
+            total_video_watch=Sum('video_watch_seconds'),
             total_text=Sum('text_time_seconds'),
         )
 
@@ -416,6 +421,8 @@ class ParticipantAdmin(admin.ModelAdmin):
             log.total_time_display = f"{m}:{s:02d}" if total else "—"
             m, s = divmod(log.video_time_seconds, 60)
             log.video_time_display = f"{m}:{s:02d}" if log.video_time_seconds else "—"
+            m, s = divmod(log.video_watch_seconds, 60)
+            log.video_watch_display = f"{m}:{s:02d}" if log.video_watch_seconds else "—"
             m, s = divmod(log.text_time_seconds, 60)
             log.text_time_display = f"{m}:{s:02d}" if log.text_time_seconds else "—"
             engagement_logs.append(log)
@@ -440,6 +447,7 @@ class ParticipantAdmin(admin.ModelAdmin):
                 'sessions_read': session_completions.filter(is_read=True).count(),
                 'total_time': fmt(total_seconds),
                 'total_video_time': fmt(totals['total_video'] or 0),
+                'total_video_watch_time': fmt(totals['total_video_watch'] or 0),
                 'total_text_time': fmt(totals['total_text'] or 0),
                 'vj_submitted': vj_entries.count(),
                 'latest_stress': vj_entries.last().vj_stress_level if vj_entries.exists() else '—',

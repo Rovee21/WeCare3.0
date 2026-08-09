@@ -110,6 +110,10 @@
         <div class="value">{{ summary.total_video_time }}</div>
       </div>
       <div class="bar-item">
+        <div class="label">Video Watch Time</div>
+        <div class="value">{{ summary.total_video_watch_time }}</div>
+      </div>
+      <div class="bar-item">
         <div class="label">Text Time</div>
         <div class="value">{{ summary.total_text_time }}</div>
       </div>
@@ -139,6 +143,7 @@
         <th>Session</th>
         <th>Total Time</th>
         <th>Video Time</th>
+        <th>Video Watch Time</th>
         <th>Text Time</th>
         <th>Video Opens</th>
         <th>Emoji Taps</th>
@@ -152,6 +157,7 @@
         <td>{{ log.course_title }}</td>
         <td>{{ log.total_time_display }}</td>
         <td>{{ log.video_time_display }}</td>
+        <td>{{ log.video_watch_display }}</td>
         <td>{{ log.text_time_display }}</td>
         <td>{{ log.video_open_count|default:"—" }}</td>
         <td>{{ log.interactive_feature_count|default:"—" }}</td>

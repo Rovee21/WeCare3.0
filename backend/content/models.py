@@ -100,6 +100,7 @@ class EngagementLog(models.Model):
     video_open_count = models.PositiveIntegerField(default=0)
     video_last_time = models.PositiveIntegerField(default=0)       # seconds watched
     video_time_seconds = models.PositiveIntegerField(default=0)
+    video_watch_seconds = models.PositiveIntegerField(default=0, help_text="Actual video playback time (from pressing play to pausing/stopping), as opposed to video_time_seconds which measures time the Video tab was simply active/visible.")
     audio_time_seconds = models.PositiveIntegerField(default=0)
     text_time_seconds = models.PositiveIntegerField(default=0)
     read_count = models.PositiveIntegerField(default=0)

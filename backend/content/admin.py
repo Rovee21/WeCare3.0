@@ -74,7 +74,7 @@ class SessionAdmin(admin.ModelAdmin):
 class EngagementLogAdmin(admin.ModelAdmin):
     list_display = [
         "participant_label", "course_title", "week_number",
-        "total_time", "video_time", "text_time",
+        "total_time", "video_time", "video_watch_time", "text_time",
         "video_open_count", "emoji_taps", "logged_at",
     ]
     list_filter = ["week_number", "logged_at"]
@@ -107,6 +107,10 @@ class EngagementLogAdmin(admin.ModelAdmin):
     def video_time(self, obj):
         return self._fmt_time(obj.video_time_seconds)
     video_time.short_description = "Video Time"
+
+    def video_watch_time(self, obj):
+        return self._fmt_time(obj.video_watch_seconds)
+    video_watch_time.short_description = "Video Watch Time"
 
     def text_time(self, obj):
         return self._fmt_time(obj.text_time_seconds)

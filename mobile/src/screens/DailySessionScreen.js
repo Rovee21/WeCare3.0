@@ -20,7 +20,33 @@ export default function DailySessionScreen({ route, navigation }) {
   const textTimeRef = React.useRef(0);
   const videoOpenRef = React.useRef(course?.video_url ? 1 : 0);
 
+  // Actual playback time (from pressing play to pausing/stopping), separate from
+  // videoTimeRef which measures time the Video tab was merely active/visible.
+  const videoWatchSecondsRef = React.useRef(0);
+  const playStartTimeRef = React.useRef(null);
+
   const player = useVideoPlayer(course?.video_url || '', p => { p.loop = false; });
+
+  // Banks the current in-progress play segment into videoWatchSecondsRef and clears
+  // playStartTimeRef, so it's safe to call this on pause, tab-away, or unmount alike.
+  function stopWatchClock() {
+    if (playStartTimeRef.current != null) {
+      const elapsed = Math.round((Date.now() - playStartTimeRef.current) / 1000);
+      if (elapsed > 0) videoWatchSecondsRef.current += elapsed;
+      playStartTimeRef.current = null;
+    }
+  }
+
+  useEffect(() => {
+    const subscription = player.addListener('playingChange', ({ isPlaying }) => {
+      if (isPlaying) {
+        playStartTimeRef.current = Date.now();
+      } else {
+        stopWatchClock();
+      }
+    });
+    return () => subscription.remove();
+  }, [player]);
 
   // TODO: `course` comes straight from the typed API client now, which is consistently
   // snake_case (see README > API Contract & Codegen). The `?? course.xxxCamelCase` fallbacks
@@ -37,6 +63,8 @@ export default function DailySessionScreen({ route, navigation }) {
         else if (activeTabRef.current === 'Text') textTimeRef.current += secondsOnTab;
       }
 
+      stopWatchClock(); // bank any in-progress play segment before leaving the screen
+
       const total = videoTimeRef.current + textTimeRef.current;
       if (total > 3) {
         logEngagement({
@@ -44,6 +72,7 @@ export default function DailySessionScreen({ route, navigation }) {
           course_title: course?.title || '',
           week_number: course?.week_number || course?.weekNumber || 1,
           video_time_seconds: videoTimeRef.current,
+          video_watch_seconds: videoWatchSecondsRef.current,
           text_time_seconds: textTimeRef.current,
           video_open_count: videoOpenRef.current,
         }).then(() => console.log('Engagement logged'))
@@ -71,12 +100,23 @@ export default function DailySessionScreen({ route, navigation }) {
     if (activeTabRef.current === 'Video') videoTimeRef.current += secondsOnTab;
     else if (activeTabRef.current === 'Text') textTimeRef.current += secondsOnTab;
 
+    // Leaving Video while playing stops the watch-time clock, same as a pause — the
+    // player itself isn't paused, so if it's still playing once Video is reopened,
+    // restart the clock below (no playingChange event fires in that case, since
+    // isPlaying never actually changed).
+    if (activeTabRef.current === 'Video' && tabKey !== 'Video') {
+      stopWatchClock();
+    }
+
     tabStartTimeRef.current = Date.now();
     activeTabRef.current = tabKey;
     setActiveTab(tabKey);
 
     if (tabKey === 'Video') {
       videoOpenRef.current += 1;
+      if (player.playing) {
+        playStartTimeRef.current = Date.now();
+      }
     }
   }
 

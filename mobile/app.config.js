@@ -6,6 +6,7 @@ module.exports = {
     version: "1.0.0",
     orientation: "portrait",
     userInterfaceStyle: "light",
+    icon: "./assets/icon.png",
     assetBundlePatterns: ["**/*"],
     newArchEnabled: true,
     updates: {
@@ -42,6 +43,6 @@ module.exports = {
         projectId: "1edee5d5-fd18-4c6f-ba6d-96115a664d55"
       }
     },
-    "owner": "lad_y"
+    owner: "lad_y"
   }
 };

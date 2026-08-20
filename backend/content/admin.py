@@ -1,7 +1,10 @@
 from django.contrib import admin
 from django.db.models import Count, Q
 from django.utils.html import format_html
-from .models import Session, AdditionalResource, EngagementLog, NotificationLog, ParticipantSession
+from .models import (
+    Session, AdditionalResource, EngagementLog, NotificationLog, ParticipantSession,
+    DailyNotificationSettings,
+)
 
 
 class AdditionalResourceInline(admin.TabularInline):
@@ -151,3 +154,24 @@ class NotificationLogAdmin(admin.ModelAdmin):
             return format_html('<span style="color:#2e7d32;">✓ Opened</span>')
         return format_html('<span style="color:#e53935;">Not opened</span>')
     was_opened.short_description = "Opened?"
+
+
+@admin.register(DailyNotificationSettings)
+class DailyNotificationSettingsAdmin(admin.ModelAdmin):
+    """Singleton settings — only one row should ever exist. Adding is blocked once a
+    row exists, and deleting is blocked outright so there's always exactly one to edit."""
+    list_display = ["send_time", "title", "body", "is_enabled", "updated_at"]
+    fields = ["send_time", "title", "body", "is_enabled", "last_sent_date"]
+    readonly_fields = ["last_sent_date"]
+
+    def has_add_permission(self, request):
+        return not DailyNotificationSettings.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def changelist_view(self, request, extra_context=None):
+        # Skip straight to the (only) row's edit form instead of a list view of one item.
+        settings_obj, _ = DailyNotificationSettings.objects.get_or_create()
+        from django.shortcuts import redirect
+        return redirect("admin:content_dailynotificationsettings_change", settings_obj.pk)

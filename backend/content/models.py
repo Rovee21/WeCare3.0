@@ -173,6 +173,21 @@ class NotificationLog(models.Model):
         return f"{self.participant} — {self.notification_type} @ {self.sent_at:%Y-%m-%d}"
 
 
+class DailyNotificationSettings(models.Model):
+    """Singleton config for the automated daily reminder — one global row, not
+    per-cohort or per-participant. See DailyNotificationSettingsAdmin for how the
+    single-row constraint is enforced."""
+    send_time = models.TimeField(default="19:00", help_text="Time of day (in the server's local timezone) the daily reminder is sent to all enrolled, non-waitlisted participants.")
+    title = models.CharField(max_length=200, default="Your session is ready!", help_text="Notification title. Customizable by admin.")
+    body = models.CharField(max_length=200, default="Come check out today's session in the WeCare app.", help_text="Notification body text. Customizable by admin.")
+    is_enabled = models.BooleanField(default=True, help_text="If unchecked, no daily notifications will be sent, regardless of time.")
+    last_sent_date = models.DateField(null=True, blank=True, help_text="The date the daily batch was last sent — used internally to prevent sending twice in the same day.")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Daily notification — {self.send_time} ({'enabled' if self.is_enabled else 'disabled'})"
+
+
 class SessionOverride(models.Model):
     """Per-participant, per-session manual unlock/lock, set by an admin — takes
     priority over the automatic day/sequential-read gating for that one session."""

@@ -103,6 +103,10 @@ SPECTACULAR_SETTINGS = {
 CORS_ALLOW_ALL_ORIGINS = env.bool("CORS_ALLOW_ALL_ORIGINS", default=False)
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
 
+# Shared secret used by content.views.trigger_daily_notification_check to authenticate
+# the automated caller (AWS EventBridge in production) via the X-Trigger-Secret header.
+DAILY_NOTIFICATION_TRIGGER_SECRET = env("DAILY_NOTIFICATION_TRIGGER_SECRET", default="")
+
 # AWS
 AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID", default="")
 AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY", default="")

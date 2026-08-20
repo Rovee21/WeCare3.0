@@ -24,6 +24,7 @@ services:
       - DATABASE_URL=postgres://wecare:wecare_local@db:5432/wecare
       - SECRET_KEY=local-dev-secret-key-change-in-production
       - DEBUG=True
+      - DAILY_NOTIFICATION_TRIGGER_SECRET=${DAILY_NOTIFICATION_TRIGGER_SECRET:-local-dev-trigger-secret}
     depends_on:
       - db
 

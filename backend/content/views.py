@@ -1,10 +1,14 @@
+from django.conf import settings as django_settings
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
-from .models import Session, ParticipantSession, EngagementLog, SessionOverride
+from .models import (
+    Session, ParticipantSession, EngagementLog, SessionOverride,
+    DailyNotificationSettings, NotificationLog,
+)
 from .serializers import SessionSerializer, EngagementLogSerializer, StatusResponseSerializer
 
 
@@ -192,3 +196,56 @@ def log_engagement(request):
         log.save(update_fields=update_fields)
 
     return Response({"status": "ok"}, status=status.HTTP_200_OK)
+
+
+@extend_schema(exclude=True)  # internal cron-style endpoint, not part of the mobile app's API
+@api_view(["POST"])
+@permission_classes([AllowAny])  # secured via shared-secret header, checked below
+def trigger_daily_notification_check(request):
+    """Called by an automated scheduler (AWS EventBridge in production; curl/requests
+    with the correct header locally) — a no-op unless the configured send_time has
+    arrived, the feature is enabled, and today's batch hasn't already gone out."""
+    from participants.notifications import send_and_log_notification_bulk
+
+    secret = request.headers.get("X-Trigger-Secret")
+    if not secret or secret != django_settings.DAILY_NOTIFICATION_TRIGGER_SECRET:
+        return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
+    settings_obj, _ = DailyNotificationSettings.objects.get_or_create()
+    if not settings_obj.is_enabled:
+        return Response({"status": "disabled"})
+
+    now = timezone.localtime()
+    today = now.date()
+
+    if settings_obj.last_sent_date == today:
+        return Response({"status": "already_sent_today"})
+
+    if now.time() < settings_obj.send_time:
+        return Response({"status": "not_yet_time"})
+
+    from participants.models import Participant, CohortStartDate
+
+    # Avoid an is_waitlisted() call per participant (which would each hit
+    # CohortStartDate individually) by resolving "cohorts whose program has started"
+    # once and filtering on that — equivalent to `not participant.is_waitlisted()`.
+    started_cohorts = set(
+        CohortStartDate.objects.filter(program_start_date__lte=today)
+        .values_list("cohort", flat=True)
+    )
+    participants = Participant.objects.filter(is_enrolled=True, cohort__in=started_cohorts)
+
+    summary = send_and_log_notification_bulk(
+        participants, settings_obj.title, settings_obj.body,
+        notification_type=NotificationLog.TYPE_DAILY,
+    )
+
+    settings_obj.last_sent_date = today
+    settings_obj.save(update_fields=["last_sent_date"])
+
+    return Response({
+        "status": "sent",
+        "sent": summary["sent"],
+        "skipped_no_token": summary["skipped_no_token"],
+        "failed": summary["failed"],
+    })

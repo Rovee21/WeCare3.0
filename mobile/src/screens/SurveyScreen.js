@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Colors } from '../constants/colors';
 import { directUpload } from '../services/journalService';
 
 export default function SurveyScreen({ navigation, route }) {
@@ -129,29 +130,29 @@ export default function SurveyScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF5E6' },
+  container: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 20, paddingTop: 40, paddingBottom: 20 },
-  sectionTitle: { fontSize: 22, fontWeight: 'bold', color: '#333', textAlign: 'center', marginBottom: 10 },
-  stressSubtitle: { fontSize: 16, color: '#666', textAlign: 'center', marginBottom: 20 },
+  sectionTitle: { fontSize: 22, fontWeight: 'bold', color: Colors.textPrimary, textAlign: 'center', marginBottom: 10 },
+  stressSubtitle: { fontSize: 16, color: Colors.textSecondary, textAlign: 'center', marginBottom: 20 },
   emotionGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 30 },
   emotionButton: { width: '30%', aspectRatio: 1, borderRadius: 15, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
-  emotionButtonSelected: { borderWidth: 3, borderColor: '#333' },
+  emotionButtonSelected: { borderWidth: 3, borderColor: Colors.primary },
   emotionEmoji: { fontSize: 32, marginBottom: 4 },
-  emotionLabel: { fontSize: 13, fontWeight: 'bold', color: '#333' },
+  emotionLabel: { fontSize: 13, fontWeight: 'bold', color: Colors.textPrimary },
   stressGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 20 },
-  stressButton: { width: '18%', aspectRatio: 1, borderRadius: 10, backgroundColor: '#E8E8E8', justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-  stressButtonSelected: { backgroundColor: '#FFB366', borderWidth: 2, borderColor: '#333' },
-  stressText: { fontSize: 18, fontWeight: 'bold', color: '#666' },
-  stressTextSelected: { color: '#333' },
-  footer: { paddingHorizontal: 20, paddingBottom: 20, paddingTop: 10, backgroundColor: '#FFF5E6' },
-  confirmButton: { backgroundColor: '#4CAF50', padding: 18, borderRadius: 25 },
+  stressButton: { width: '18%', aspectRatio: 1, borderRadius: 10, backgroundColor: Colors.cardBackground, borderWidth: 1, borderColor: Colors.border, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
+  stressButtonSelected: { backgroundColor: Colors.primary, borderWidth: 2, borderColor: Colors.primary },
+  stressText: { fontSize: 18, fontWeight: 'bold', color: Colors.textSecondary },
+  stressTextSelected: { color: Colors.white },
+  footer: { paddingHorizontal: 20, paddingBottom: 20, paddingTop: 10, backgroundColor: Colors.background },
+  confirmButton: { backgroundColor: Colors.accent, padding: 18, borderRadius: 25 },
   confirmButtonDisabled: { opacity: 0.6 },
-  confirmText: { fontSize: 20, fontWeight: 'bold', color: 'white', textAlign: 'center' },
-  thankYouContainer: { flex: 1, backgroundColor: '#FFF5E6', justifyContent: 'center', alignItems: 'center', padding: 40 },
-  checkmark: { fontSize: 100, color: '#4CAF50', marginBottom: 20 },
-  thankYouTitle: { fontSize: 32, fontWeight: 'bold', color: '#333', marginBottom: 15 },
-  thankYouText: { fontSize: 22, color: '#666', textAlign: 'center', marginBottom: 10 },
-  thankYouSubtext: { fontSize: 18, color: '#888', textAlign: 'center', marginBottom: 30 },
-  homeButton: { backgroundColor: '#4CAF50', padding: 15, borderRadius: 10, width: '100%' },
-  homeButtonText: { fontSize: 18, color: 'white', fontWeight: '600', textAlign: 'center' },
+  confirmText: { fontSize: 20, fontWeight: 'bold', color: Colors.white, textAlign: 'center' },
+  thankYouContainer: { flex: 1, backgroundColor: Colors.background, justifyContent: 'center', alignItems: 'center', padding: 40 },
+  checkmark: { fontSize: 100, color: Colors.primary, marginBottom: 20 },
+  thankYouTitle: { fontSize: 32, fontWeight: 'bold', color: Colors.textPrimary, marginBottom: 15 },
+  thankYouText: { fontSize: 22, color: Colors.textSecondary, textAlign: 'center', marginBottom: 10 },
+  thankYouSubtext: { fontSize: 18, color: Colors.textSecondary, textAlign: 'center', marginBottom: 30 },
+  homeButton: { backgroundColor: Colors.accent, padding: 15, borderRadius: 10, width: '100%' },
+  homeButtonText: { fontSize: 18, color: Colors.white, fontWeight: '600', textAlign: 'center' },
 });

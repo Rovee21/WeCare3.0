@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Colors } from '../constants/colors';
 
 export default function VoiceJournalScreen({ navigation }) {
   const audioRecorder = useAudioRecorder({
@@ -174,24 +175,24 @@ export default function VoiceJournalScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF5E6' },
+  container: { flex: 1, backgroundColor: Colors.background },
   scrollContainer: { flexGrow: 1, padding: 20 },
-  dateText: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginTop: 20, marginBottom: 20, color: '#333' },
-  questionContainer: { backgroundColor: 'white', padding: 25, borderRadius: 20, marginBottom: 20, elevation: 3 },
-  questionText: { fontSize: 20, textAlign: 'center', color: '#333', lineHeight: 28 },
-  instructionText: { fontSize: 16, color: '#666', textAlign: 'center', marginBottom: 20, fontStyle: 'italic' },
+  dateText: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginTop: 20, marginBottom: 20, color: Colors.textPrimary },
+  questionContainer: { backgroundColor: Colors.cardBackground, padding: 25, borderRadius: 20, marginBottom: 20, elevation: 3 },
+  questionText: { fontSize: 20, textAlign: 'center', color: Colors.textPrimary, lineHeight: 28 },
+  instructionText: { fontSize: 16, color: Colors.textSecondary, textAlign: 'center', marginBottom: 20, fontStyle: 'italic' },
   recordingArea: { flex: 1, justifyContent: 'center', alignItems: 'center', minHeight: 300 },
-  recordButton: { width: 200, height: 200, borderRadius: 100, backgroundColor: '#FFB366', justifyContent: 'center', alignItems: 'center', elevation: 8 },
-  recordButtonActive: { backgroundColor: '#FF6B6B' },
+  recordButton: { width: 200, height: 200, borderRadius: 100, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center', elevation: 8 },
+  recordButtonActive: { backgroundColor: Colors.accent },
   micIcon: { fontSize: 60, marginBottom: 10 },
-  recordButtonText: { fontSize: 16, fontWeight: 'bold', color: '#333', textAlign: 'center' },
-  timerText: { fontSize: 22, fontWeight: 'bold', marginTop: 20, color: '#333' },
+  recordButtonText: { fontSize: 16, fontWeight: 'bold', color: Colors.white, textAlign: 'center' },
+  timerText: { fontSize: 22, fontWeight: 'bold', marginTop: 20, color: Colors.textPrimary },
   confirmationContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 30 },
-  confirmTitle: { fontSize: 28, fontWeight: 'bold', color: '#333', marginBottom: 15 },
-  confirmDuration: { fontSize: 20, color: '#666', marginBottom: 20 },
-  confirmQuestion: { fontSize: 20, color: '#333', textAlign: 'center', marginBottom: 30, lineHeight: 28 },
-  submitButton: { backgroundColor: '#4CAF50', padding: 18, borderRadius: 25, width: '100%', marginBottom: 15 },
-  submitButtonText: { fontSize: 20, fontWeight: 'bold', color: 'white', textAlign: 'center' },
-  reRecordButton: { backgroundColor: '#FFB366', padding: 18, borderRadius: 25, width: '100%' },
-  reRecordButtonText: { fontSize: 20, fontWeight: 'bold', color: '#333', textAlign: 'center' },
+  confirmTitle: { fontSize: 28, fontWeight: 'bold', color: Colors.textPrimary, marginBottom: 15 },
+  confirmDuration: { fontSize: 20, color: Colors.textSecondary, marginBottom: 20 },
+  confirmQuestion: { fontSize: 20, color: Colors.textPrimary, textAlign: 'center', marginBottom: 30, lineHeight: 28 },
+  submitButton: { backgroundColor: Colors.accent, padding: 18, borderRadius: 25, width: '100%', marginBottom: 15 },
+  submitButtonText: { fontSize: 20, fontWeight: 'bold', color: Colors.white, textAlign: 'center' },
+  reRecordButton: { backgroundColor: Colors.primary, padding: 18, borderRadius: 25, width: '100%' },
+  reRecordButtonText: { fontSize: 20, fontWeight: 'bold', color: Colors.white, textAlign: 'center' },
 });

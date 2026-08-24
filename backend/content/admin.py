@@ -1,9 +1,12 @@
+from types import SimpleNamespace
+from django import forms
 from django.contrib import admin
 from django.utils.html import format_html
 from .models import (
     Session, AdditionalResource, EngagementLog, NotificationLog, ParticipantSession,
     DailyNotificationSettings,
 )
+from .services import upload_video_to_s3
 
 
 class AdditionalResourceInline(admin.TabularInline):
@@ -12,8 +15,41 @@ class AdditionalResourceInline(admin.TabularInline):
     fields = ["title", "title_zh", "resource_type", "url"]
 
 
+class SessionAdminForm(forms.ModelForm):
+    video_upload = forms.FileField(
+        required=False,
+        label="Upload MP4 video",
+        help_text="Uploads directly to S3 and fills in Video URL below.",
+    )
+
+    class Meta:
+        model = Session
+        fields = "__all__"
+
+    def clean_video_upload(self):
+        f = self.cleaned_data.get("video_upload")
+        if f and not (f.content_type == "video/mp4" or f.name.lower().endswith(".mp4")):
+            raise forms.ValidationError("Please upload an MP4 video file.")
+        return f
+
+    def clean(self):
+        cleaned_data = super().clean()
+        upload = cleaned_data.get("video_upload")
+        week = cleaned_data.get("week_number")
+        day = cleaned_data.get("day_number")
+        if upload and week is not None and day is not None:
+            try:
+                cleaned_data["video_url"] = upload_video_to_s3(
+                    upload, SimpleNamespace(week_number=week, day_number=day)
+                )
+            except Exception as e:
+                raise forms.ValidationError(f"Video upload failed: {e}")
+        return cleaned_data
+
+
 @admin.register(Session)
 class SessionAdmin(admin.ModelAdmin):
+    form = SessionAdminForm
     list_display = [
         "week_number", "day_number", "title",
         "target_group1_display", "target_group2_display", "target_group3_display",
@@ -33,8 +69,8 @@ class SessionAdmin(admin.ModelAdmin):
             "description": "Leave blank to show this session to all participants in that dimension.",
         }),
         ("Media URLs", {
-            "fields": ("video_url",),
-            "description": "Enter S3 URLs or external video embed URLs.",
+            "fields": ("video_upload", "video_url"),
+            "description": "Upload an MP4 directly, or paste an S3/external video URL.",
         }),
         ("Text Content", {
             "fields": ("text_content", "text_content_zh"),

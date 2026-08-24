@@ -184,6 +184,9 @@ class DailyNotificationSettings(models.Model):
     last_sent_date = models.DateField(null=True, blank=True, help_text="The date the daily batch was last sent — used internally to prevent sending twice in the same day.")
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        verbose_name_plural = "Daily notification settings"
+
     def __str__(self):
         return f"Daily notification — {self.send_time} ({'enabled' if self.is_enabled else 'disabled'})"
 

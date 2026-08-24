@@ -2,9 +2,11 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.admin import AdminSite
+from django.contrib.auth.models import User, Group
 from django.http import HttpResponseRedirect
 from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from rest_framework.authtoken.models import TokenProxy
 
 
 class WeCareAdminSite(AdminSite):
@@ -16,6 +18,12 @@ class WeCareAdminSite(AdminSite):
 
 
 admin.site.__class__ = WeCareAdminSite
+
+# Accounts are managed via `createsuperuser`/`eb ssh`, not the admin UI —
+# these built-in Django/DRF admin sections have no use here.
+admin.site.unregister(User)
+admin.site.unregister(Group)
+admin.site.unregister(TokenProxy)
 
 admin.site.site_header = "WeCare Research Admin"
 admin.site.site_title = "WeCare Admin"

@@ -61,6 +61,7 @@ class VoiceJournalEntry(models.Model):
 
     class Meta:
         ordering = ["-submitted_at"]
+        verbose_name_plural = "Voice journal entries"
         # One submission per participant per week
         # unique_together = ["participant", "week_number"]
 

@@ -11,6 +11,7 @@ from .serializers import (
     VoiceJournalPromptSerializer,
     VoiceJournalSubmitSerializer,
     VoiceJournalEntrySerializer,
+    VoiceJournalHistoryEntrySerializer,
     JournalPromptResponseSerializer,
     UploadUrlResponseSerializer,
     DirectUploadRequestSerializer,
@@ -145,6 +146,21 @@ def _trigger_transcription(entry):
     except Exception:
         entry.transcription_status = VoiceJournalEntry.STATUS_FAILED
         entry.save(update_fields=["transcription_status"])
+
+@extend_schema(responses=VoiceJournalHistoryEntrySerializer(many=True))
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def vj_history(request):
+    """The requesting participant's own past VJ entries, most recent first — never
+    another participant's, since the queryset is always scoped to this participant."""
+    participant = _get_participant(request)
+    if not participant:
+        return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    entries = VoiceJournalEntry.objects.filter(participant=participant).order_by("-submitted_at")
+    serializer = VoiceJournalHistoryEntrySerializer(entries, many=True, context={"request": request})
+    return Response(serializer.data)
+
 
 @extend_schema(request=DirectUploadRequestSerializer, responses=DirectUploadResponseSerializer)
 @api_view(["POST"])

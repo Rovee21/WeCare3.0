@@ -23,6 +23,7 @@
   .badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 600; }
   .badge-green { background: #e8f5e9; color: #2e7d32; }
   .badge-gray { background: #f5f5f5; color: #999; }
+  .badge-amber { background: #fff8e1; color: #b45309; }
   .back-btn { display: inline-block; margin-bottom: 20px; padding: 8px 16px; background: #1F6B9A; color: #fff; border-radius: 6px; text-decoration: none; font-size: 13px; }
   .back-btn:hover { background: #2E86C1; color: #fff; }
   .dash { color: #ccc; }
@@ -87,7 +88,7 @@
       </div>
       <div class="bar-item">
         <div class="label">Latest Emotion</div>
-        <div class="value">{{ latest_emotion|default:"—" }}</div>
+        <div class="value">{{ summary.latest_emotion|default:"—" }}</div>
       </div>
     </div>
 
@@ -189,9 +190,11 @@
         <td>{{ ps.session.title }}</td>
         <td>
           {% if ps.is_read %}
-            <span class="badge badge-green">✓ Read</span>
+            <span class="badge badge-green">✓ Completed</span>
+          {% elif ps.started_at %}
+            <span class="badge badge-amber">In Progress</span>
           {% else %}
-            <span class="badge badge-gray">Unread</span>
+            <span class="badge badge-gray">Not Started</span>
           {% endif %}
         </td>
         <td>{{ ps.read_at|date:"M d, Y g:i a"|default:"—" }}</td>

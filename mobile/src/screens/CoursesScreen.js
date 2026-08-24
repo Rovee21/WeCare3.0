@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 import { getAllSessions } from '../services/sessionService';
 import { Colors } from '../constants/colors';
+import { scaleFont } from '../constants/typography';
 
 function groupByWeek(sessions) {
   const map = {};
@@ -21,7 +22,7 @@ function groupByWeek(sessions) {
     .map(week => ({ title: `WEEK ${week}`, data: map[week] }));
 }
 
-function CheckCircle({ isRead, isCurrent, isLocked }) {
+function CheckCircle({ isRead, isInProgress, isCurrent, isLocked }) {
   if (isLocked) {
     return (
       <View style={[styles.circle, styles.circleLocked]}>
@@ -33,6 +34,13 @@ function CheckCircle({ isRead, isCurrent, isLocked }) {
     return (
       <View style={[styles.circle, styles.circleRead]}>
         <Text style={styles.checkmark}>✓</Text>
+      </View>
+    );
+  }
+  if (isInProgress) {
+    return (
+      <View style={[styles.circle, styles.circleInProgress]}>
+        <Text style={styles.inProgressIcon}>◐</Text>
       </View>
     );
   }
@@ -62,9 +70,9 @@ export default function CoursesScreen({ navigation }) {
   );
 
   const totalSessions = sessions.length;
-  const completedSessions = sessions.filter(s => s.is_read || s.isRead).length;
+  const completedSessions = sessions.filter(s => s.status === 'completed' || s.is_read || s.isRead).length;
   const remaining = totalSessions - completedSessions;
-  const firstUnreadId = sessions.find(s => !(s.is_read || s.isRead) && !s.locked)?.id;
+  const firstUnreadId = sessions.find(s => s.status !== 'completed' && !(s.is_read || s.isRead) && !s.locked)?.id;
 
   const sections = useMemo(() => {
     const filtered = query
@@ -75,7 +83,8 @@ export default function CoursesScreen({ navigation }) {
 
   const renderItem = useCallback(({ item }) => {
     const isLocked = !!item.locked;
-    const isRead = item.is_read || item.isRead;
+    const isRead = item.status === 'completed' || item.is_read || item.isRead;
+    const isInProgress = item.status === 'in_progress';
     const isCurrent = !isLocked && !isRead && item.id === firstUnreadId;
     const mediaTypes = item.media_types || item.mediaTypes || [];
     const meta = mediaTypes[0] ?? '';
@@ -89,7 +98,7 @@ export default function CoursesScreen({ navigation }) {
         }}
         disabled={isLocked}
       >
-        <CheckCircle isRead={isRead} isCurrent={isCurrent} isLocked={isLocked} />
+        <CheckCircle isRead={isRead} isInProgress={isInProgress} isCurrent={isCurrent} isLocked={isLocked} />
         <View style={styles.courseInfo}>
           <Text style={[styles.courseTitle, isLocked && styles.courseTitleLocked]}>{item.title}</Text>
           {meta ? <Text style={styles.courseMeta}>{meta}</Text> : null}
@@ -105,7 +114,7 @@ export default function CoursesScreen({ navigation }) {
           onPress={() => navigation.navigate('Home')}
           style={{ alignSelf: 'flex-start', marginBottom: 8 }}
         >
-          <Text style={{ fontSize: 18, color: Colors.accent, fontWeight: '500' }}> ← Home Page</Text>
+          <Text style={{ fontSize: scaleFont(18), color: Colors.accent, fontWeight: '500' }}> ← Home Page</Text>
         </TouchableOpacity>
         <Text style={styles.heading}>{t('courses.heading')}</Text>
         <Text style={styles.subheading}>
@@ -156,16 +165,16 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
   list: { paddingHorizontal: 16, paddingBottom: 24 },
   heading: {
-    fontSize: 32,
+    fontSize: scaleFont(32),
     fontWeight: '700',
     color: Colors.textPrimary,
     marginBottom: 8,
   },
   subheading: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
     color: Colors.textSecondary,
     marginBottom: 16,
-    lineHeight: 20,
+    lineHeight: 24,
   },
   subheadingAccent: {
     color: Colors.accent,
@@ -183,13 +192,13 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   progressLabel: {
-    fontSize: 11,
+    fontSize: scaleFont(11),
     color: Colors.textSecondary,
     letterSpacing: 0.5,
     marginBottom: 4,
   },
   progressCount: {
-    fontSize: 16,
+    fontSize: scaleFont(16),
     fontWeight: '700',
     color: Colors.textPrimary,
     marginBottom: 10,
@@ -209,14 +218,14 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderRadius: 10,
     paddingHorizontal: 14,
-    fontSize: 15,
+    fontSize: scaleFont(15),
     color: Colors.textPrimary,
     borderWidth: 1,
     borderColor: Colors.border,
     marginBottom: 4,
   },
   sectionHeader: {
-    fontSize: 11,
+    fontSize: scaleFont(11),
     fontWeight: '700',
     color: Colors.textSecondary,
     letterSpacing: 1,
@@ -242,6 +251,8 @@ const styles = StyleSheet.create({
   },
   circleEmpty: { borderWidth: 2, borderColor: Colors.border },
   circleRead: { backgroundColor: Colors.primary },
+  circleInProgress: { backgroundColor: Colors.accentLight, borderWidth: 2, borderColor: Colors.accent },
+  inProgressIcon: { fontSize: 14, color: Colors.accent, fontWeight: '700' },
   circleCurrent: { borderWidth: 2, borderColor: Colors.primary },
   circleDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.primary },
   circleLocked: { backgroundColor: 'transparent' },
@@ -249,7 +260,7 @@ const styles = StyleSheet.create({
   checkmark: { color: Colors.white, fontSize: 12, fontWeight: '700' },
   courseInfo: { flex: 1 },
   courseRowLocked: { opacity: 0.5 },
-  courseTitle: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary, marginBottom: 2 },
+  courseTitle: { fontSize: scaleFont(15), fontWeight: '600', color: Colors.textPrimary, marginBottom: 2 },
   courseTitleLocked: { color: Colors.textSecondary },
-  courseMeta: { fontSize: 12, color: Colors.textSecondary },
+  courseMeta: { fontSize: scaleFont(12), color: Colors.textSecondary },
 });

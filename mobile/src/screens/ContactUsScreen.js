@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Linking } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Colors } from '../constants/colors';
+import { scaleFont } from '../constants/typography';
 
 export default function ContactUsScreen() {
   const { t } = useTranslation();
@@ -47,7 +48,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   content: { paddingHorizontal: 20, paddingTop: 16 },
   heading: {
-    fontSize: 32,
+    fontSize: scaleFont(32),
     fontWeight: '700',
     color: Colors.textPrimary,
     marginBottom: 24,
@@ -63,12 +64,12 @@ const styles = StyleSheet.create({
   },
   coordinatorInfo: { flex: 1 },
   coordinatorTitle: {
-    fontSize: 18,
+    fontSize: scaleFont(18),
     fontWeight: '700',
     color: Colors.white,
     marginBottom: 4,
   },
-  coordinatorPhone: { fontSize: 14, color: 'rgba(255,255,255,0.75)' },
+  coordinatorPhone: { fontSize: scaleFont(14), color: 'rgba(255,255,255,0.75)' },
   phoneCircle: {
     width: 44,
     height: 44,
@@ -77,7 +78,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  phoneIcon: { fontSize: 22 },
+  phoneIcon: { fontSize: scaleFont(22) },
   emailCard: {
     backgroundColor: Colors.white,
     borderRadius: 16,
@@ -99,9 +100,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 14,
   },
-  emailIcon: { fontSize: 20 },
+  emailIcon: { fontSize: scaleFont(20) },
   emailInfo: { flex: 1 },
-  emailTitle: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary, marginBottom: 2 },
-  emailAddress: { fontSize: 13, color: Colors.textSecondary },
-  arrow: { fontSize: 18, color: Colors.textSecondary },
+  emailTitle: { fontSize: scaleFont(15), fontWeight: '600', color: Colors.textPrimary, marginBottom: 2 },
+  emailAddress: { fontSize: scaleFont(13), color: Colors.textSecondary },
+  arrow: { fontSize: scaleFont(18), color: Colors.textSecondary },
 });

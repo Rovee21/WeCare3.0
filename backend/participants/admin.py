@@ -164,8 +164,8 @@ class SessionCompletionInline(admin.TabularInline):
     model = None  # set below
     extra = 0
     can_delete = False
-    fields = ["session", "is_read", "read_at"]
-    readonly_fields = ["session", "is_read", "read_at"]
+    fields = ["session", "is_read", "started_at", "read_at"]
+    readonly_fields = ["session", "is_read", "started_at", "read_at"]
     verbose_name = "Session Completion"
     verbose_name_plural = "Session Completions"
 
@@ -206,7 +206,7 @@ class ParticipantAdmin(admin.ModelAdmin):
         "participant_id_display", "email", "language",
         "cohort", "group1", "group2", "group3",
         "adrd_relationship_group",
-        "is_enrolled", "current_week_display",
+        "is_enrolled", "enrollment_code_display", "current_week_display",
         "sessions_completed", "vj_count", "last_active",
         "code_status",
     ]
@@ -428,6 +428,7 @@ class ParticipantAdmin(admin.ModelAdmin):
             engagement_logs.append(log)
         session_completions = ParticipantSession.objects.filter(participant=participant).select_related('session').order_by('session__week_number', 'session__day_number')
         vj_entries = VoiceJournalEntry.objects.filter(participant=participant).order_by('week_number')
+        latest_vj_entry = VoiceJournalEntry.objects.filter(participant=participant).order_by('-submitted_at').first()
 
         def fmt(seconds):
             if not seconds:
@@ -450,8 +451,8 @@ class ParticipantAdmin(admin.ModelAdmin):
                 'total_video_watch_time': fmt(totals['total_video_watch'] or 0),
                 'total_text_time': fmt(totals['total_text'] or 0),
                 'vj_submitted': vj_entries.count(),
-                'latest_stress': vj_entries.last().vj_stress_level if vj_entries.exists() else '—',
-                'latest_emotion': vj_entries.last().get_emotion_label_display() if vj_entries.exists() else '—',
+                'latest_stress': latest_vj_entry.vj_stress_level if latest_vj_entry else '—',
+                'latest_emotion': latest_vj_entry.get_emotion_label_display() if latest_vj_entry and latest_vj_entry.emotion_label else '—',
                 'last_active': raw_logs.order_by('-logged_at').first().logged_at if raw_logs.exists() else None,
             },
             'fmt': fmt,
@@ -623,8 +624,8 @@ class ParticipantAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         return qs.annotate(
-            _sessions_completed=Count("session_states", filter=Q(session_states__is_read=True)),
-            _vj_count=Count("journal_entries"),
+            _sessions_completed=Count("session_states", filter=Q(session_states__is_read=True), distinct=True),
+            _vj_count=Count("journal_entries", distinct=True),
             _last_active=Max("engagement_logs__logged_at"),
         )
 
@@ -683,6 +684,16 @@ class ParticipantAdmin(admin.ModelAdmin):
         return format_html('<span title="{}">{}</span>', dt.strftime("%Y-%m-%d %H:%M"), dt.strftime("%b %d"))
     last_active.short_description = "Last Active"
     last_active.admin_order_field = "_last_active"
+
+    def enrollment_code_display(self, obj):
+        if not obj.enrollment_code:
+            return format_html('<span style="color:#999;">—</span>')
+        return format_html(
+            '<code style="background:#fff8e1;padding:2px 8px;border-radius:3px;letter-spacing:1px;">{}</code>',
+            obj.enrollment_code,
+        )
+    enrollment_code_display.short_description = "Enrollment Code"
+    enrollment_code_display.admin_order_field = "enrollment_code"
 
     def code_status(self, obj):
         if obj.is_enrolled:

@@ -7,6 +7,10 @@
 </div>
 {% endblock %}
 
+{% block object-tools %}
+  {% include "admin/_back_button.html" with back_url="/admin/" back_label="Back to Admin Home" %}
+  {{ block.super }}
+{% endblock %}
 {% block object-tools-items %}
   {{ block.super }}
   <li>
@@ -19,4 +23,8 @@
       ⬆ Import CSV/Excel
     </a>
   </li>
+{% endblock %}
+{% block pagination %}
+  {{ block.super }}
+  {% include "admin/_back_button.html" with back_url="/admin/" back_label="Back to Admin Home" %}
 {% endblock %}

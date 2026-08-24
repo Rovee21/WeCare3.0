@@ -13,6 +13,7 @@
     "coursesNotWatched": "{{n}}个课程尚未观看",
     "voiceJournal": "语音日记",
     "lastEntry": "上次记录：昨天",
+    "viewHistory": "查看历史记录",
     "contactUs": "联系我们"
   },
   "courses": {

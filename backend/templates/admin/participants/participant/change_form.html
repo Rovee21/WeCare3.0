@@ -9,3 +9,9 @@
   </li>
   {% endif %}
 {% endblock %}
+{% block form_top %}
+  {% include "admin/_back_button.html" with back_url="/admin/participants/participant/" back_label="Back to Participant List" %}
+{% endblock %}
+{% block after_related_objects %}
+  {% include "admin/_back_button.html" with back_url="/admin/participants/participant/" back_label="Back to Participant List" %}
+{% endblock %}

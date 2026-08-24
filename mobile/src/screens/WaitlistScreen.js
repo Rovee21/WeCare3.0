@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 import { getUserProfile } from '../services/userService';
 import { Colors } from '../constants/colors';
+import { scaleFont } from '../constants/typography';
 
 function formatProgramStartDate(isoDate) {
   return new Date(`${isoDate}T00:00:00`).toLocaleDateString('en-US', {
@@ -54,19 +55,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 32,
   },
-  emoji: { fontSize: 48, marginBottom: 16 },
+  emoji: { fontSize: 48, marginBottom: 16 }, // decorative icon glyph, not reading text — left unscaled
   title: {
-    fontSize: 22,
+    fontSize: scaleFont(22),
     fontWeight: '700',
     color: Colors.textPrimary,
     marginBottom: 12,
     textAlign: 'center',
   },
   message: {
-    fontSize: 15,
+    fontSize: scaleFont(15),
     color: Colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 26,
     marginBottom: 28,
   },
   contactButton: {
@@ -75,5 +76,5 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 28,
   },
-  contactButtonText: { color: Colors.white, fontWeight: '600', fontSize: 15 },
+  contactButtonText: { color: Colors.white, fontWeight: '600', fontSize: scaleFont(15) },
 });

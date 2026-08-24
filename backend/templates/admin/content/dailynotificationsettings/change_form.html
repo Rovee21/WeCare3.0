@@ -11,3 +11,6 @@
   </li>
   {% endif %}
 {% endblock %}
+{% block after_related_objects %}
+  {% include "admin/_back_button.html" with back_url="/admin/" back_label="Back to Admin Home" %}
+{% endblock %}

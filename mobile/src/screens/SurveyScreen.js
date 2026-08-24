@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../constants/colors';
+import { scaleFont } from '../constants/typography';
 import { directUpload } from '../services/journalService';
 
 export default function SurveyScreen({ navigation, route }) {
@@ -65,7 +66,7 @@ export default function SurveyScreen({ navigation, route }) {
           style={styles.homeButton}
           onPress={() => navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] })}
         >
-          <Text style={styles.homeButtonText}>Go to Home</Text>
+          <Text style={styles.homeButtonText}>Go Home</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -132,27 +133,27 @@ export default function SurveyScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 20, paddingTop: 40, paddingBottom: 20 },
-  sectionTitle: { fontSize: 22, fontWeight: 'bold', color: Colors.textPrimary, textAlign: 'center', marginBottom: 10 },
-  stressSubtitle: { fontSize: 16, color: Colors.textSecondary, textAlign: 'center', marginBottom: 20 },
+  sectionTitle: { fontSize: scaleFont(22), fontWeight: 'bold', color: Colors.textPrimary, textAlign: 'center', marginBottom: 10 },
+  stressSubtitle: { fontSize: scaleFont(16), color: Colors.textSecondary, textAlign: 'center', marginBottom: 20 },
   emotionGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 30 },
   emotionButton: { width: '30%', aspectRatio: 1, borderRadius: 15, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
   emotionButtonSelected: { borderWidth: 3, borderColor: Colors.primary },
-  emotionEmoji: { fontSize: 32, marginBottom: 4 },
-  emotionLabel: { fontSize: 13, fontWeight: 'bold', color: Colors.textPrimary },
+  emotionEmoji: { fontSize: scaleFont(32), marginBottom: 4 },
+  emotionLabel: { fontSize: scaleFont(13), fontWeight: 'bold', color: Colors.textPrimary },
   stressGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 20 },
   stressButton: { width: '18%', aspectRatio: 1, borderRadius: 10, backgroundColor: Colors.cardBackground, borderWidth: 1, borderColor: Colors.border, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
   stressButtonSelected: { backgroundColor: Colors.primary, borderWidth: 2, borderColor: Colors.primary },
-  stressText: { fontSize: 18, fontWeight: 'bold', color: Colors.textSecondary },
+  stressText: { fontSize: scaleFont(18), fontWeight: 'bold', color: Colors.textSecondary },
   stressTextSelected: { color: Colors.white },
   footer: { paddingHorizontal: 20, paddingBottom: 20, paddingTop: 10, backgroundColor: Colors.background },
   confirmButton: { backgroundColor: Colors.accent, padding: 18, borderRadius: 25 },
   confirmButtonDisabled: { opacity: 0.6 },
-  confirmText: { fontSize: 20, fontWeight: 'bold', color: Colors.white, textAlign: 'center' },
+  confirmText: { fontSize: scaleFont(20), fontWeight: 'bold', color: Colors.white, textAlign: 'center' },
   thankYouContainer: { flex: 1, backgroundColor: Colors.background, justifyContent: 'center', alignItems: 'center', padding: 40 },
-  checkmark: { fontSize: 100, color: Colors.primary, marginBottom: 20 },
-  thankYouTitle: { fontSize: 32, fontWeight: 'bold', color: Colors.textPrimary, marginBottom: 15 },
-  thankYouText: { fontSize: 22, color: Colors.textSecondary, textAlign: 'center', marginBottom: 10 },
-  thankYouSubtext: { fontSize: 18, color: Colors.textSecondary, textAlign: 'center', marginBottom: 30 },
+  checkmark: { fontSize: 100, color: Colors.primary, marginBottom: 20 }, // decorative icon glyph, not reading text — left unscaled
+  thankYouTitle: { fontSize: scaleFont(32), fontWeight: 'bold', color: Colors.textPrimary, marginBottom: 15 },
+  thankYouText: { fontSize: scaleFont(22), color: Colors.textSecondary, textAlign: 'center', marginBottom: 10 },
+  thankYouSubtext: { fontSize: scaleFont(18), color: Colors.textSecondary, textAlign: 'center', marginBottom: 30 },
   homeButton: { backgroundColor: Colors.accent, padding: 15, borderRadius: 10, width: '100%' },
-  homeButtonText: { fontSize: 18, color: Colors.white, fontWeight: '600', textAlign: 'center' },
+  homeButtonText: { fontSize: scaleFont(18), color: Colors.white, fontWeight: '600', textAlign: 'center' },
 });

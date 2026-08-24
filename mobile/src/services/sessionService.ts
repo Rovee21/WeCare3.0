@@ -11,6 +11,14 @@ export async function getAllSessions() {
   return unwrap(await apiClient.GET('/api/sessions/'));
 }
 
+export async function markInProgress(courseId: number) {
+  return unwrap(
+    await apiClient.POST('/api/sessions/{session_id}/start/', {
+      params: { path: { session_id: courseId } },
+    })
+  );
+}
+
 export async function markAsRead(courseId: number) {
   return unwrap(
     await apiClient.POST('/api/sessions/{session_id}/read/', {

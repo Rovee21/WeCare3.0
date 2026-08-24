@@ -1,5 +1,4 @@
 from django.contrib import admin
-from django.db.models import Count, Q
 from django.utils.html import format_html
 from .models import (
     Session, AdditionalResource, EngagementLog, NotificationLog, ParticipantSession,
@@ -17,8 +16,8 @@ class AdditionalResourceInline(admin.TabularInline):
 class SessionAdmin(admin.ModelAdmin):
     list_display = [
         "week_number", "day_number", "title",
-        "cohort_target", "has_video", "has_text",
-        "participants_read", "is_active",
+        "target_group1_display", "target_group2_display", "target_group3_display",
+        "is_active",
     ]
     list_filter = ["week_number", "target_group1", "target_group2", "target_group3", "is_active"]
     search_fields = ["title", "title_zh"]
@@ -43,34 +42,26 @@ class SessionAdmin(admin.ModelAdmin):
         }),
     )
 
-    def get_queryset(self, request):
-        return super().get_queryset(request).annotate(
-            _read_count=Count("participantsession", filter=Q(participantsession__is_read=True))
-        )
+    def target_group1_display(self, obj):
+        if not obj.target_group1:
+            return format_html('<span style="color:#999;">All</span>')
+        return obj.get_target_group1_display()
+    target_group1_display.short_description = "Group 1 (Intervention/Control)"
+    target_group1_display.admin_order_field = "target_group1"
 
-    def cohort_target(self, obj):
-        parts = [
-            p for p in [obj.target_group1, obj.target_group2, obj.target_group3] if p
-        ]
-        return " · ".join(p.replace("_", " ").title() for p in parts) if parts else format_html('<span style="color:#999;">All</span>')
-    cohort_target.short_description = "Cohort Target"
+    def target_group2_display(self, obj):
+        if not obj.target_group2:
+            return format_html('<span style="color:#999;">All</span>')
+        return obj.get_target_group2_display()
+    target_group2_display.short_description = "Group 2 (Mild/Moderate/Severe)"
+    target_group2_display.admin_order_field = "target_group2"
 
-    def has_video(self, obj):
-        return bool(obj.video_url)
-    has_video.boolean = True
-    has_video.short_description = "Video"
-
-    def has_text(self, obj):
-        return bool(obj.text_content)
-    has_text.boolean = True
-    has_text.short_description = "Text"
-
-    def participants_read(self, obj):
-        count = getattr(obj, "_read_count", 0)
-        color = "#2e7d32" if count > 0 else "#999"
-        return format_html('<span style="color:{};">{}</span>', color, count)
-    participants_read.short_description = "# Read"
-    participants_read.admin_order_field = "_read_count"
+    def target_group3_display(self, obj):
+        if not obj.target_group3:
+            return format_html('<span style="color:#999;">All</span>')
+        return obj.get_target_group3_display()
+    target_group3_display.short_description = "Group 3 (High/Low Stress)"
+    target_group3_display.admin_order_field = "target_group3"
 
 
 @admin.register(EngagementLog)

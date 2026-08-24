@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { logEngagement, markAsRead } from '../services/sessionService';
+import { logEngagement, markAsRead, markInProgress } from '../services/sessionService';
 import { Colors } from '../constants/colors';
+import { scaleFont } from '../constants/typography';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Linking } from 'react-native';
 
@@ -52,7 +53,7 @@ export default function DailySessionScreen({ route, navigation }) {
   // snake_case (see README > API Contract & Codegen). The `?? course.xxxCamelCase` fallbacks
   // in this file (here and below) are dead code from before that fix and can be removed.
   useEffect(() => {
-    if (course?.id) markAsRead(course.id).catch(() => {});
+    if (course?.id) markInProgress(course.id).catch(() => {});
     tabStartTimeRef.current = Date.now();
     activeTabRef.current = 'Video';
 
@@ -67,6 +68,17 @@ export default function DailySessionScreen({ route, navigation }) {
 
       const total = videoTimeRef.current + textTimeRef.current;
       if (total > 3) {
+        // "Completed" requires meeting a meaningful engagement threshold (60s) on every
+        // tab that actually has content for this session — a tab with no content for
+        // this session doesn't block completion. Falling short leaves it "in progress"
+        // (see markInProgress above), not completed.
+        const hasVideo = !!course?.video_url;
+        const hasText = !!course?.text_content;
+        const videoThresholdMet = !hasVideo || videoWatchSecondsRef.current >= 60;
+        const textThresholdMet = !hasText || textTimeRef.current >= 60;
+        if (course?.id && videoThresholdMet && textThresholdMet) {
+          markAsRead(course.id).catch(() => {});
+        }
         logEngagement({
           session_id: course?.id,
           course_title: course?.title || '',
@@ -192,7 +204,7 @@ export default function DailySessionScreen({ route, navigation }) {
                   }}
                 >
                   <View style={styles.resourceThumb}>
-                    <Text style={{ fontSize: 32, textAlign: 'center', marginTop: 10 }}>
+                    <Text style={{ fontSize: scaleFont(32), textAlign: 'center', marginTop: 10 }}>
                       {r.resource_type === 'PDF' ? '📄' : r.resource_type === 'Video' ? '🎬' : '🔗'}
                     </Text>
                   </View>
@@ -226,11 +238,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   backButton: { padding: 4 },
-  backText: { fontSize: 18, color: Colors.accent, fontWeight: '500' },
-  overflow: { fontSize: 20, color: Colors.textSecondary },
+  backText: { fontSize: scaleFont(18), color: Colors.accent, fontWeight: '500' },
+  overflow: { fontSize: scaleFont(20), color: Colors.textSecondary },
   scroll: { paddingHorizontal: 16, paddingBottom: 24 },
-  meta: { fontSize: 13, color: Colors.textSecondary, marginBottom: 6 },
-  courseTitle: { fontSize: 22, fontWeight: '700', color: Colors.textPrimary, marginBottom: 16 },
+  meta: { fontSize: scaleFont(13), color: Colors.textSecondary, marginBottom: 6 },
+  courseTitle: { fontSize: scaleFont(22), fontWeight: '700', color: Colors.textPrimary, marginBottom: 16 },
   tabBar: {
     flexDirection: 'row',
     backgroundColor: Colors.cardBackground,
@@ -240,7 +252,7 @@ const styles = StyleSheet.create({
   },
   tab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 8 },
   tabActive: { backgroundColor: Colors.white },
-  tabText: { fontSize: 14, color: Colors.textSecondary, fontWeight: '500' },
+  tabText: { fontSize: scaleFont(14), color: Colors.textSecondary, fontWeight: '500' },
   tabTextActive: { color: Colors.textPrimary, fontWeight: '600' },
   mediaArea: { marginBottom: 24 },
   videoPlaceholder: {
@@ -255,8 +267,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#000',
   },
-  playIcon: { fontSize: 40, color: Colors.white, marginBottom: 8 },
-  videoDuration: { fontSize: 13, color: 'rgba(255,255,255,0.7)' },
+  playIcon: { fontSize: 40, color: Colors.white, marginBottom: 8 }, // decorative icon glyph, not reading text — left unscaled
+  videoDuration: { fontSize: scaleFont(13), color: 'rgba(255,255,255,0.7)' },
   audioPlaceholder: {
     height: 120,
     backgroundColor: Colors.cardBackground,
@@ -264,10 +276,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  placeholderLabel: { fontSize: 14, color: Colors.textSecondary, marginTop: 8 },
+  placeholderLabel: { fontSize: scaleFont(14), color: Colors.textSecondary, marginTop: 8 },
   textContent: { padding: 4 },
-  textBody: { fontSize: 15, color: Colors.textPrimary, lineHeight: 24 },
-  sectionLabel: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary, marginBottom: 12 },
+  textBody: { fontSize: scaleFont(15), color: Colors.textPrimary, lineHeight: 29 },
+  sectionLabel: { fontSize: scaleFont(15), fontWeight: '600', color: Colors.textPrimary, marginBottom: 12 },
   resourcesRow: { marginBottom: 16 },
   resourceCard: {
     width: 120,
@@ -284,8 +296,8 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     marginBottom: 6,
   },
-  resourceTitle: { fontSize: 12, fontWeight: '600', color: Colors.textPrimary, marginBottom: 2 },
-  resourceType: { fontSize: 11, color: Colors.textSecondary },
+  resourceTitle: { fontSize: scaleFont(12), fontWeight: '600', color: Colors.textPrimary, marginBottom: 2 },
+  resourceType: { fontSize: scaleFont(11), color: Colors.textSecondary },
   bottomBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -298,5 +310,5 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
   },
   emojiButton: { padding: 6 },
-  emoji: { fontSize: 28 },
+  emoji: { fontSize: scaleFont(28) },
 });

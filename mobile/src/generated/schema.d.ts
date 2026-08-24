@@ -20,6 +20,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/device/register/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["device_register_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/engagement/": {
         parameters: {
             query?: never;
@@ -62,6 +78,26 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["journal_direct_upload_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/journal/history/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description The requesting participant's own past VJ entries, most recent first — never
+         *     another participant's, since the queryset is always scoped to this participant.
+         */
+        get: operations["journal_history_list"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -166,6 +202,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sessions/{session_id}/start/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Called when a session is opened — records that it's been started, distinct from
+         *     (and always prior to) mark_read's "completed" signal.
+         */
+        post: operations["sessions_start_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sessions/today/": {
         parameters: {
             query?: never;
@@ -217,10 +273,16 @@ export interface components {
             submitted_at: string;
         };
         EngagementLog: {
+            readonly session_id: number | null;
             course_title?: string;
             week_number?: number | null;
             video_open_count?: number;
             video_last_time?: number;
+            video_time_seconds?: number;
+            /** @description Actual video playback time (from pressing play to pausing/stopping), as opposed to video_time_seconds which measures time the Video tab was simply active/visible. */
+            video_watch_seconds?: number;
+            audio_time_seconds?: number;
+            text_time_seconds?: number;
             read_count?: number;
             /** Format: double */
             read_minutes?: number;
@@ -247,7 +309,7 @@ export interface components {
         };
         /**
          * @description * `intervention` - Intervention
-         *     * `control` - Non-intervention
+         *     * `control` - Control
          * @enum {string}
          */
         Group1Enum: "intervention" | "control";
@@ -283,6 +345,10 @@ export interface components {
             group2: components["schemas"]["Group2Enum"];
             group3: components["schemas"]["Group3Enum"];
             adrd_relationship_group: components["schemas"]["AdrdRelationshipGroupEnum"];
+            /**
+             * @description Cohort-anchored week number: 0 while waitlisted (cohort hasn't started, or has
+             *     no CohortStartDate yet), otherwise the same value automatic_gated_week() computes.
+             */
             readonly week_number: number;
             /** Format: date-time */
             enrolled_at?: string | null;
@@ -313,7 +379,16 @@ export interface components {
             text_content_zh?: string;
             readonly resources: components["schemas"]["AdditionalResource"][];
             readonly is_read: boolean;
+            readonly status: components["schemas"]["StatusEnum"];
+            readonly locked: boolean;
         };
+        /**
+         * @description * `not_started` - not_started
+         *     * `in_progress` - in_progress
+         *     * `completed` - completed
+         * @enum {string}
+         */
+        StatusEnum: "not_started" | "in_progress" | "completed";
         StatusResponse: {
             status: string;
         };
@@ -338,6 +413,17 @@ export interface components {
             transcription_status?: components["schemas"]["TranscriptionStatusEnum"];
             /** Format: date-time */
             readonly submitted_at: string;
+        };
+        VoiceJournalHistoryEntry: {
+            readonly id: number;
+            week_number: number;
+            /** Format: date-time */
+            readonly submitted_at: string;
+            emotion_label: string;
+            vj_stress_level?: number | null;
+            recording_seconds?: number;
+            /** Format: uri */
+            readonly audio_url: string | null;
         };
         VoiceJournalSubmit: {
             audio_s3_key: string;
@@ -364,6 +450,24 @@ export interface operations {
         responses: {
             /** @description No response body */
             204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    device_register_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -441,6 +545,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DirectUploadResponse"];
+                };
+            };
+        };
+    };
+    journal_history_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceJournalHistoryEntry"][];
                 };
             };
         };
@@ -547,6 +670,27 @@ export interface operations {
         };
     };
     sessions_read_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResponse"];
+                };
+            };
+        };
+    };
+    sessions_start_create: {
         parameters: {
             query?: never;
             header?: never;

@@ -10,6 +10,7 @@ import DailySessionScreen from '../screens/DailySessionScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import ContactUsScreen from '../screens/ContactUsScreen';
 import VoiceJournalScreen from '../screens/VoiceJournalScreen';
+import VoiceJournalHistoryScreen from '../screens/VoiceJournalHistoryScreen';
 import SurveyScreen from '../screens/SurveyScreen';
 import WaitlistScreen from '../screens/WaitlistScreen';
 import { Colors } from '../constants/colors';
@@ -34,6 +35,7 @@ function JournalNavigator() {
     <JournalStack.Navigator screenOptions={{ headerShown: false }}>
       <JournalStack.Screen name="VoiceJournal" component={VoiceJournalScreen} />
       <JournalStack.Screen name="Survey" component={SurveyScreen} />
+      <JournalStack.Screen name="VoiceJournalHistory" component={VoiceJournalHistoryScreen} />
     </JournalStack.Navigator>
   );
 }
@@ -84,6 +86,20 @@ function MainTabs() {
           tabBarLabel: t('tabs.journal'),
           tabBarIcon: ({ color }) => <Text style={{ fontSize: 18, color }}>🎙️</Text>,
         }}
+        listeners={({ navigation }) => ({
+          tabPress: () => {
+            // Re-pressing the Journal tab while already on it should reset its stack back
+            // to the recording landing screen, same convention as HomeScreen's card —
+            // switching INTO the tab from elsewhere still resumes wherever it was left
+            // (e.g. the History screen), which is intentional and unaffected here.
+            const state = navigation.getState();
+            const journalRoute = state.routes[state.index];
+            const alreadyFocused = journalRoute?.name === 'Journal';
+            if (alreadyFocused && journalRoute.state && journalRoute.state.index > 0) {
+              navigation.navigate('Journal', { screen: 'VoiceJournal' });
+            }
+          },
+        })}
       />
       <Tab.Screen
         name="Contact"

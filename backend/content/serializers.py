@@ -14,6 +14,7 @@ class SessionSerializer(serializers.ModelSerializer):
     week_label = serializers.ReadOnlyField()
     resources = AdditionalResourceSerializer(many=True, read_only=True)
     is_read = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
     locked = serializers.SerializerMethodField()
 
     class Meta:
@@ -22,19 +23,37 @@ class SessionSerializer(serializers.ModelSerializer):
             "id", "title", "title_zh", "week_number", "day_number",
             "week_label", "media_types",
             "video_url", "audio_url", "text_content", "text_content_zh",
-            "resources", "is_read", "locked",
+            "resources", "is_read", "status", "locked",
         ]
+
+    def _participant_session(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return None
+        if not hasattr(self, "_ps_cache"):
+            self._ps_cache = {}
+        if obj.id not in self._ps_cache:
+            try:
+                self._ps_cache[obj.id] = obj.participantsession_set.get(participant=request.user.participant)
+            except Exception:
+                self._ps_cache[obj.id] = None
+        return self._ps_cache[obj.id]
 
     @extend_schema_field(serializers.BooleanField)
     def get_is_read(self, obj):
-        request = self.context.get("request")
-        if not request or not request.user.is_authenticated:
-            return False
-        try:
-            ps = obj.participantsession_set.get(participant=request.user.participant)
-            return ps.is_read
-        except Exception:
-            return False
+        ps = self._participant_session(obj)
+        return bool(ps and ps.is_read)
+
+    @extend_schema_field(serializers.ChoiceField(choices=["not_started", "in_progress", "completed"]))
+    def get_status(self, obj):
+        ps = self._participant_session(obj)
+        if not ps:
+            return "not_started"
+        if ps.is_read:
+            return "completed"
+        if ps.started_at:
+            return "in_progress"
+        return "not_started"
 
     @extend_schema_field(serializers.BooleanField)
     def get_locked(self, obj):

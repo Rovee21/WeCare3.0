@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { enrollWithCode } from '../services/authService';
 import { getUserProfile } from '../services/userService';
 import { Colors } from '../constants/colors';
+import { scaleFont } from '../constants/typography';
 
 export default function EnrollmentScreen({ navigation }) {
   const { t } = useTranslation();
@@ -108,20 +109,20 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   title: {
-    fontSize: 26,
+    fontSize: scaleFont(26),
     fontWeight: '700',
     color: Colors.textPrimary,
     textAlign: 'center',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
     color: Colors.textSecondary,
     textAlign: 'center',
     marginBottom: 28,
   },
   inputLabel: {
-    fontSize: 13,
+    fontSize: scaleFont(13),
     color: Colors.textSecondary,
     marginBottom: 6,
   },
@@ -132,7 +133,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     borderRadius: 10,
     paddingHorizontal: 16,
-    fontSize: 16,
+    fontSize: scaleFont(16),
     color: Colors.textPrimary,
     backgroundColor: Colors.background,
     marginBottom: 20,
@@ -150,11 +151,11 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.6 },
   buttonText: {
     color: Colors.accent,
-    fontSize: 16,
+    fontSize: scaleFont(16),
     fontWeight: '600',
   },
   privacy: {
-    fontSize: 12,
+    fontSize: scaleFont(12),
     color: Colors.textSecondary,
     textAlign: 'center',
     paddingBottom: 16,

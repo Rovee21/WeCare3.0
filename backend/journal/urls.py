@@ -6,4 +6,5 @@ urlpatterns = [
     path("journal/upload/", views.upload_url, name="journal_upload_url"),
     path("journal/submit/", views.submit_entry, name="journal_submit"),
     path("journal/direct-upload/", views.direct_upload, name="journal_direct_upload"),
+    path("journal/history/", views.vj_history, name="journal_history"),
 ]

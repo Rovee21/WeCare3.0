@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { getTodaysSession, getAllSessions } from '../services/sessionService';
 import { getStoredProfile } from '../services/authService';
 import { Colors } from '../constants/colors';
+import { scaleFont } from '../constants/typography';
 
 function IconCircle({ emoji }) {
   return (
@@ -94,20 +95,29 @@ export default function HomeScreen({ navigation }) {
         </TouchableOpacity>
 
         {/* Voice Journal card */}
-        <TouchableOpacity
-          testID="home-voice-journal-card"
-          style={styles.card}
-          onPress={() => navigation.navigate('Journal')}
-          activeOpacity={0.85}
-        >
-          <View style={styles.cardBody}>
-            <View style={styles.cardLeft}>
-              <Text style={styles.cardTitle}>{t('home.voiceJournal')}</Text>
-              <Text style={styles.cardSub}>{t('home.lastEntry')}</Text>
+        <View style={[styles.card, styles.journalCard]}>
+          <TouchableOpacity
+            testID="home-voice-journal-card"
+            onPress={() => navigation.navigate('Journal', { screen: 'VoiceJournal' })}
+            activeOpacity={0.85}
+          >
+            <View style={styles.cardBody}>
+              <View style={styles.cardLeft}>
+                <Text style={styles.cardTitle}>{t('home.voiceJournal')}</Text>
+                <Text style={styles.cardSub}>{t('home.lastEntry')}</Text>
+              </View>
+              <IconCircle emoji="🎙️" />
             </View>
-            <IconCircle emoji="🎙️" />
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+          <TouchableOpacity
+            testID="home-voice-journal-history-button"
+            style={styles.historyButton}
+            onPress={() => navigation.navigate('Journal', { screen: 'VoiceJournalHistory' })}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.historyButtonText}>📜 {t('home.viewHistory')}</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Contact Us card */}
         <TouchableOpacity
@@ -137,7 +147,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   greeting: {
-    fontSize: 26,
+    fontSize: scaleFont(26),
     fontWeight: '700',
     color: Colors.textPrimary,
     flex: 1,
@@ -153,7 +163,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginLeft: 12,
   },
-  avatarText: { fontSize: 13, fontWeight: '600', color: Colors.textSecondary },
+  avatarText: { fontSize: scaleFont(13), fontWeight: '600', color: Colors.textSecondary },
   sessionCard: {
     backgroundColor: Colors.primary,
     borderRadius: 16,
@@ -161,14 +171,14 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   sessionLabel: {
-    fontSize: 12,
+    fontSize: scaleFont(12),
     color: 'rgba(255,255,255,0.7)',
     fontWeight: '600',
     letterSpacing: 0.5,
     marginBottom: 6,
   },
   sessionTitle: {
-    fontSize: 20,
+    fontSize: scaleFont(20),
     fontWeight: '700',
     color: Colors.white,
     marginBottom: 16,
@@ -180,7 +190,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     alignSelf: 'flex-start',
   },
-  startButtonText: { color: Colors.white, fontWeight: '600', fontSize: 14 },
+  startButtonText: { color: Colors.white, fontWeight: '600', fontSize: scaleFont(14) },
   card: {
     backgroundColor: Colors.white,
     borderRadius: 16,
@@ -199,7 +209,7 @@ const styles = StyleSheet.create({
   },
   cardLeft: { flex: 1, paddingRight: 12 },
   cardTitle: {
-    fontSize: 22,
+    fontSize: scaleFont(22),
     fontWeight: '700',
     color: Colors.textPrimary,
     marginBottom: 8,
@@ -212,13 +222,29 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   badgeText: {
-    fontSize: 12,
+    fontSize: scaleFont(12),
     color: Colors.accent,
     fontWeight: '500',
   },
   cardSub: {
-    fontSize: 13,
+    fontSize: scaleFont(13),
     color: Colors.textSecondary,
+  },
+  journalCard: {
+    paddingBottom: 16,
+  },
+  historyButton: {
+    marginTop: 14,
+    alignSelf: 'flex-start',
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    backgroundColor: Colors.accentLight,
+  },
+  historyButtonText: {
+    fontSize: scaleFont(13),
+    fontWeight: '600',
+    color: Colors.accent,
   },
   iconCircle: {
     width: 52,
@@ -228,5 +254,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconEmoji: { fontSize: 22 },
+  iconEmoji: { fontSize: scaleFont(22) },
 });

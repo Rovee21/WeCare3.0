@@ -1,0 +1,7 @@
+{% extends "admin/change_form.html" %}
+{% block form_top %}
+  {% include "admin/_back_button.html" with back_url="/admin/content/session/" back_label="Back to Session List" %}
+{% endblock %}
+{% block after_related_objects %}
+  {% include "admin/_back_button.html" with back_url="/admin/content/session/" back_label="Back to Session List" %}
+{% endblock %}

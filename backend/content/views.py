@@ -118,6 +118,28 @@ def session_today(request):
 @extend_schema(request=None, responses=StatusResponseSerializer)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+def mark_in_progress(request, session_id):
+    """Called when a session is opened — records that it's been started, distinct from
+    (and always prior to) mark_read's "completed" signal."""
+    participant = _get_participant(request)
+    if not participant:
+        return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
+    try:
+        session = Session.objects.get(pk=session_id)
+    except Session.DoesNotExist:
+        return Response({"detail": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    ps, _ = ParticipantSession.objects.get_or_create(participant=participant, session=session)
+    if not ps.started_at:
+        ps.started_at = timezone.now()
+        ps.save(update_fields=["started_at"])
+
+    return Response({"status": "ok"})
+
+
+@extend_schema(request=None, responses=StatusResponseSerializer)
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def mark_read(request, session_id):
     participant = _get_participant(request)
     if not participant:
@@ -128,10 +150,18 @@ def mark_read(request, session_id):
         return Response({"detail": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
 
     ps, _ = ParticipantSession.objects.get_or_create(participant=participant, session=session)
+    update_fields = []
+    if not ps.started_at:
+        # Defensive fallback: if mark_in_progress didn't land (e.g. a dropped request),
+        # completing the session should still leave a started_at, not a gap.
+        ps.started_at = timezone.now()
+        update_fields.append("started_at")
     if not ps.is_read:
         ps.is_read = True
         ps.read_at = timezone.now()
-        ps.save(update_fields=["is_read", "read_at"])
+        update_fields += ["is_read", "read_at"]
+    if update_fields:
+        ps.save(update_fields=update_fields)
 
     return Response({"status": "ok"})
 

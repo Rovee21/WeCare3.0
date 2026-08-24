@@ -71,12 +71,16 @@ class AdditionalResource(models.Model):
 
 
 class ParticipantSession(models.Model):
-    """Tracks read/unread state per participant per session."""
+    """Tracks per-participant-per-session progress: not started (no row, or `started_at`
+    unset) -> in progress (`started_at` set, opened but not yet completed) -> completed
+    (`is_read` True, set only once the participant has spent meaningful time on the
+    session and actually leaves it — see DailySessionScreen.js's unmount handler)."""
     participant = models.ForeignKey(
         "participants.Participant", on_delete=models.CASCADE, related_name="session_states"
     )
     session = models.ForeignKey(Session, on_delete=models.CASCADE)
-    is_read = models.BooleanField(default=False)
+    started_at = models.DateTimeField(null=True, blank=True, help_text="Set the first time the participant opens this session, whether or not they finish it.")
+    is_read = models.BooleanField(default=False, help_text="True once the participant has completed the session (spent meaningful time before leaving), not merely opened it.")
     read_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:

@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { getStoredProfile, deleteAccount } from '../services/authService';
 import { Colors } from '../constants/colors';
+import { scaleFont } from '../constants/typography';
 import * as SecureStore from 'expo-secure-store';
 
 export default function SettingsScreen({ navigation }) {
@@ -118,7 +119,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   content: { paddingHorizontal: 20, paddingTop: 16 },
   heading: {
-    fontSize: 32,
+    fontSize: scaleFont(32),
     fontWeight: '700',
     color: Colors.textPrimary,
     marginBottom: 20,
@@ -145,12 +146,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarIcon: { fontSize: 22 },
-  profileName: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary },
-  profileId: { fontSize: 13, color: Colors.textSecondary, marginTop: 2 },
-  profileMeta: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
+  avatarIcon: { fontSize: scaleFont(22) },
+  profileName: { fontSize: scaleFont(16), fontWeight: '700', color: Colors.textPrimary },
+  profileId: { fontSize: scaleFont(13), color: Colors.textSecondary, marginTop: 2 },
+  profileMeta: { fontSize: scaleFont(12), color: Colors.textSecondary, marginTop: 2 },
   sectionLabel: {
-    fontSize: 11,
+    fontSize: scaleFont(11),
     fontWeight: '700',
     color: Colors.textSecondary,
     letterSpacing: 0.8,
@@ -177,7 +178,7 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.border,
   },
   rowLast: { borderBottomWidth: 0 },
-  rowLabel: { fontSize: 15, color: Colors.textPrimary },
+  rowLabel: { fontSize: scaleFont(15), color: Colors.textPrimary },
   radioCircle: {
     width: 24,
     height: 24,
@@ -191,7 +192,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
     backgroundColor: Colors.primary,
   },
-  radioCheck: { color: Colors.white, fontSize: 12, fontWeight: '700' },
+  radioCheck: { color: Colors.white, fontSize: 12, fontWeight: '700' }, // tiny fixed 24px circle — left unscaled to avoid overflow
   deleteRow: {
     backgroundColor: Colors.white,
     borderRadius: 16,
@@ -203,5 +204,5 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 1,
   },
-  deleteText: { fontSize: 15, color: Colors.destructive, fontWeight: '600' },
+  deleteText: { fontSize: scaleFont(15), color: Colors.destructive, fontWeight: '600' },
 });

@@ -5,6 +5,10 @@ export async function getJournalPrompt() {
   return unwrap(await apiClient.GET('/api/journal/prompt/'));
 }
 
+export async function getJournalHistory() {
+  return unwrap(await apiClient.GET('/api/journal/history/'));
+}
+
 type DirectUploadArgs = {
   audioUri: string;
   recordingSeconds: number;

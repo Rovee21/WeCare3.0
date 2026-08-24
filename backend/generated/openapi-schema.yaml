@@ -14,6 +14,16 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/device/register/:
+    post:
+      operationId: device_register_create
+      tags:
+      - device
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/engagement/:
     post:
       operationId: engagement_create
@@ -88,6 +98,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DirectUploadResponse'
+          description: ''
+  /api/journal/history/:
+    get:
+      operationId: journal_history_list
+      description: |-
+        The requesting participant's own past VJ entries, most recent first — never
+        another participant's, since the queryset is always scoped to this participant.
+      tags:
+      - journal
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VoiceJournalHistoryEntry'
           description: ''
   /api/journal/prompt/:
     get:
@@ -195,6 +224,29 @@ paths:
               schema:
                 $ref: '#/components/schemas/StatusResponse'
           description: ''
+  /api/sessions/{session_id}/start/:
+    post:
+      operationId: sessions_start_create
+      description: |-
+        Called when a session is opened — records that it's been started, distinct from
+        (and always prior to) mark_read's "completed" signal.
+      parameters:
+      - in: path
+        name: session_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - sessions
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+          description: ''
   /api/sessions/today/:
     get:
       operationId: sessions_today_retrieve
@@ -282,6 +334,10 @@ components:
     EngagementLog:
       type: object
       properties:
+        session_id:
+          type: integer
+          nullable: true
+          readOnly: true
         course_title:
           type: string
           maxLength: 200
@@ -295,6 +351,25 @@ components:
           maximum: 2147483647
           minimum: 0
         video_last_time:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        video_time_seconds:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        video_watch_seconds:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          description: Actual video playback time (from pressing play to pausing/stopping),
+            as opposed to video_time_seconds which measures time the Video tab was
+            simply active/visible.
+        audio_time_seconds:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        text_time_seconds:
           type: integer
           maximum: 2147483647
           minimum: 0
@@ -328,6 +403,8 @@ components:
         push_up:
           type: string
           maxLength: 200
+      required:
+      - session_id
     Enroll:
       type: object
       properties:
@@ -371,7 +448,7 @@ components:
       type: string
       description: |-
         * `intervention` - Intervention
-        * `control` - Non-intervention
+        * `control` - Control
     Group2Enum:
       enum:
       - mild
@@ -434,6 +511,9 @@ components:
           $ref: '#/components/schemas/AdrdRelationshipGroupEnum'
         week_number:
           type: integer
+          description: |-
+            Cohort-anchored week number: 0 while waitlisted (cohort hasn't started, or has
+            no CohortStartDate yet), otherwise the same value automatic_gated_week() computes.
           readOnly: true
         enrolled_at:
           type: string
@@ -514,15 +594,34 @@ components:
         is_read:
           type: boolean
           readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          readOnly: true
+        locked:
+          type: boolean
+          readOnly: true
       required:
       - day_number
       - id
       - is_read
+      - locked
       - media_types
       - resources
+      - status
       - title
       - week_label
       - week_number
+    StatusEnum:
+      enum:
+      - not_started
+      - in_progress
+      - completed
+      type: string
+      description: |-
+        * `not_started` - not_started
+        * `in_progress` - in_progress
+        * `completed` - completed
     StatusResponse:
       type: object
       properties:
@@ -579,6 +678,42 @@ components:
           format: date-time
           readOnly: true
       required:
+      - id
+      - submitted_at
+      - week_number
+    VoiceJournalHistoryEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        week_number:
+          type: integer
+          maximum: 32767
+          minimum: 0
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+        emotion_label:
+          type: string
+        vj_stress_level:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          nullable: true
+        recording_seconds:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        audio_url:
+          type: string
+          format: uri
+          nullable: true
+          readOnly: true
+      required:
+      - audio_url
+      - emotion_label
       - id
       - submitted_at
       - week_number

@@ -249,3 +249,29 @@ def trigger_daily_notification_check(request):
         "skipped_no_token": summary["skipped_no_token"],
         "failed": summary["failed"],
     })
+
+
+@extend_schema(exclude=True)  # internal cron-style endpoint, not part of the mobile app's API
+@api_view(["POST"])
+@permission_classes([AllowAny])  # secured via shared-secret header, checked below
+def trigger_scheduled_notifications(request):
+    """Called by an automated scheduler (AWS EventBridge in production; curl/requests
+    with the correct header locally) — sends any pending scheduled NotificationLog rows
+    whose scheduled_for time has passed. Reuses the same shared-secret trigger pattern
+    and env var as trigger_daily_notification_check, since both are internal EventBridge
+    triggers on the same backend."""
+    from participants.notifications import process_due_scheduled_notifications
+
+    secret = request.headers.get("X-Trigger-Secret")
+    if not secret or secret != django_settings.DAILY_NOTIFICATION_TRIGGER_SECRET:
+        return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
+    summary = process_due_scheduled_notifications()
+
+    return Response({
+        "status": "ok",
+        "processed": summary["processed"],
+        "sent": summary["sent"],
+        "skipped_no_token": summary["skipped_no_token"],
+        "failed": summary["failed"],
+    })

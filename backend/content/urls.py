@@ -7,4 +7,5 @@ urlpatterns = [
     path("sessions/<int:session_id>/read/", views.mark_read, name="mark_read"),
     path("engagement/", views.log_engagement, name="log_engagement"),
     path("internal/trigger-daily-notification/", views.trigger_daily_notification_check, name="trigger_daily_notification"),
+    path("internal/trigger-scheduled-notifications/", views.trigger_scheduled_notifications, name="trigger_scheduled_notifications"),
 ]

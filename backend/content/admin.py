@@ -175,3 +175,33 @@ class DailyNotificationSettingsAdmin(admin.ModelAdmin):
         settings_obj, _ = DailyNotificationSettings.objects.get_or_create()
         from django.shortcuts import redirect
         return redirect("admin:content_dailynotificationsettings_change", settings_obj.pk)
+
+    def get_urls(self):
+        from django.urls import path
+        urls = super().get_urls()
+        custom = [
+            path(
+                "<int:object_id>/reset-last-sent/",
+                self.admin_site.admin_view(self.reset_last_sent_view),
+                name="content_dailynotificationsettings_reset_last_sent",
+            ),
+        ]
+        return custom + urls
+
+    def reset_last_sent_view(self, request, object_id):
+        from django.shortcuts import redirect, get_object_or_404
+        settings_obj = get_object_or_404(DailyNotificationSettings, pk=object_id)
+        settings_obj.last_sent_date = None
+        settings_obj.save(update_fields=["last_sent_date"])
+        self.message_user(
+            request,
+            "Reset — the daily notification can now send again today. "
+            "This does not send anything itself; it only clears the "
+            "\"already sent today\" flag for the next scheduled check-in.",
+        )
+        return redirect("admin:content_dailynotificationsettings_change", object_id)
+
+    def change_view(self, request, object_id, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        extra_context["reset_last_sent_url"] = f"/admin/content/dailynotificationsettings/{object_id}/reset-last-sent/"
+        return super().change_view(request, object_id, form_url, extra_context)

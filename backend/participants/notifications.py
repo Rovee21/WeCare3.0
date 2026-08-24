@@ -190,3 +190,33 @@ def schedule_notification_bulk(participants, title, body, scheduled_for, notific
         schedule_notification(participant, title, body, scheduled_for, notification_type=notification_type)
         for participant in participants
     ]
+
+
+def process_due_scheduled_notifications():
+    """
+    Sends any pending NotificationLog rows whose scheduled_for time has passed, updating
+    each row's status in place (never creating a new row). Shared by both
+    `send_scheduled_notifications` (the manual management command) and
+    `trigger_scheduled_notifications` (the HTTP endpoint EventBridge calls), so both
+    surfaces stay in sync.
+
+    Returns a summary dict: {"processed": int, "sent": int, "failed": int, "skipped_no_token": int}.
+    """
+    from content.models import NotificationLog
+
+    due = NotificationLog.objects.filter(
+        status=NotificationLog.STATUS_PENDING,
+        scheduled_for__lte=timezone.now(),
+    )
+
+    summary = {"processed": 0, "sent": 0, "failed": 0, "skipped_no_token": 0}
+
+    for log in due:
+        result = send_push_notification(log.participant, log.title, log.push_up)
+        log.status = status_for_send_result(result)
+        log.actually_sent_at = timezone.now()
+        log.save(update_fields=["status", "actually_sent_at"])
+        summary[log.status] += 1
+        summary["processed"] += 1
+
+    return summary

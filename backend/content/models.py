@@ -14,6 +14,16 @@ class Session(models.Model):
     audio_file = models.FileField(upload_to='session_audio/', blank=True, null=True)
     text_content = models.TextField(blank=True)
     text_content_zh = models.TextField(blank=True)
+    text_content_html = models.TextField(
+        blank=True,
+        help_text="Rich HTML (headings, formatting, inline images hosted on S3) generated "
+                   "from an uploaded .docx via the admin's 'Upload Word document' field. "
+                   "Can be hand-edited afterward. Falls back to text_content on mobile when empty."
+    )
+    text_content_html_zh = models.TextField(
+        blank=True,
+        help_text="Chinese counterpart to text_content_html."
+    )
 
     # Cohort targeting — blank means "show to all" for that dimension
     target_group1 = models.CharField(
@@ -53,7 +63,7 @@ class Session(models.Model):
             types.append("Video")
         if self.audio_url:
             types.append("Audio")
-        if self.text_content:
+        if self.text_content or self.text_content_html:
             types.append("Text")
         return types
 

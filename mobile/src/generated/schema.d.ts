@@ -377,6 +377,10 @@ export interface components {
             audio_url?: string;
             text_content?: string;
             text_content_zh?: string;
+            /** @description Rich HTML (headings, formatting, inline images hosted on S3) generated from an uploaded .docx via the admin's 'Upload Word document' field. Can be hand-edited afterward. Falls back to text_content on mobile when empty. */
+            text_content_html?: string;
+            /** @description Chinese counterpart to text_content_html. */
+            text_content_html_zh?: string;
             readonly resources: components["schemas"]["AdditionalResource"][];
             readonly is_read: boolean;
             readonly status: components["schemas"]["StatusEnum"];

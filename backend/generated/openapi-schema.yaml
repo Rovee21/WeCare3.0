@@ -586,6 +586,15 @@ components:
           type: string
         text_content_zh:
           type: string
+        text_content_html:
+          type: string
+          description: Rich HTML (headings, formatting, inline images hosted on S3)
+            generated from an uploaded .docx via the admin's 'Upload Word document'
+            field. Can be hand-edited afterward. Falls back to text_content on mobile
+            when empty.
+        text_content_html_zh:
+          type: string
+          description: Chinese counterpart to text_content_html.
         resources:
           type: array
           items:

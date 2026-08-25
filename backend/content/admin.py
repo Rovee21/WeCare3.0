@@ -6,7 +6,7 @@ from .models import (
     Session, AdditionalResource, EngagementLog, NotificationLog, ParticipantSession,
     DailyNotificationSettings,
 )
-from .services import upload_video_to_s3
+from .services import upload_video_to_s3, convert_docx_to_html
 
 
 class AdditionalResourceInline(admin.TabularInline):
@@ -21,6 +21,19 @@ class SessionAdminForm(forms.ModelForm):
         label="Upload MP4 video",
         help_text="Uploads directly to S3 and fills in Video URL below.",
     )
+    docx_upload = forms.FileField(
+        required=False,
+        label="Upload Word document (English)",
+        help_text="Uploads a .docx, converts it to rich text (headings/formatting, with "
+                   "inline images extracted and uploaded to S3), and fills in the HTML "
+                   "field below. The result can still be hand-edited afterward, same as "
+                   "Video URL after an MP4 upload.",
+    )
+    docx_upload_zh = forms.FileField(
+        required=False,
+        label="Upload Word document (Chinese)",
+        help_text="Same as above, populates the Chinese HTML field below.",
+    )
 
     class Meta:
         model = Session
@@ -32,11 +45,25 @@ class SessionAdminForm(forms.ModelForm):
             raise forms.ValidationError("Please upload an MP4 video file.")
         return f
 
+    def _clean_docx(self, field_name):
+        f = self.cleaned_data.get(field_name)
+        docx_mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        if f and not (f.content_type == docx_mime or f.name.lower().endswith(".docx")):
+            raise forms.ValidationError("Please upload a .docx Word document.")
+        return f
+
+    def clean_docx_upload(self):
+        return self._clean_docx("docx_upload")
+
+    def clean_docx_upload_zh(self):
+        return self._clean_docx("docx_upload_zh")
+
     def clean(self):
         cleaned_data = super().clean()
-        upload = cleaned_data.get("video_upload")
         week = cleaned_data.get("week_number")
         day = cleaned_data.get("day_number")
+
+        upload = cleaned_data.get("video_upload")
         if upload and week is not None and day is not None:
             try:
                 cleaned_data["video_url"] = upload_video_to_s3(
@@ -44,6 +71,25 @@ class SessionAdminForm(forms.ModelForm):
                 )
             except Exception as e:
                 raise forms.ValidationError(f"Video upload failed: {e}")
+
+        docx = cleaned_data.get("docx_upload")
+        if docx and week is not None and day is not None:
+            try:
+                cleaned_data["text_content_html"] = convert_docx_to_html(
+                    docx, SimpleNamespace(week_number=week, day_number=day)
+                )
+            except Exception as e:
+                raise forms.ValidationError(f"Word document (English) conversion failed: {e}")
+
+        docx_zh = cleaned_data.get("docx_upload_zh")
+        if docx_zh and week is not None and day is not None:
+            try:
+                cleaned_data["text_content_html_zh"] = convert_docx_to_html(
+                    docx_zh, SimpleNamespace(week_number=week, day_number=day)
+                )
+            except Exception as e:
+                raise forms.ValidationError(f"Word document (Chinese) conversion failed: {e}")
+
         return cleaned_data
 
 
@@ -77,8 +123,18 @@ class SessionAdmin(admin.ModelAdmin):
             "description": "Upload an MP4 directly, or paste an S3/external video URL.",
         }),
         ("Text Content", {
-            "fields": ("text_content", "text_content_zh"),
+            "fields": (
+                "docx_upload", "text_content_html",
+                "docx_upload_zh", "text_content_html_zh",
+                "text_content", "text_content_zh",
+            ),
             "classes": ("wide",),
+            "description": "Upload a .docx to auto-fill the HTML field directly below it — "
+                            "embedded images are extracted and hosted on S3 automatically, in "
+                            "reading order. You can hand-edit the resulting HTML afterward, same "
+                            "as editing Video URL after an MP4 upload. The plain-text fields "
+                            "below remain a fallback used by older sessions/app versions with no "
+                            "rich content.",
         }),
     )
 

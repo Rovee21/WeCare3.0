@@ -19,6 +19,8 @@ services:
       - .:/app
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
       - DJANGO_SETTINGS_MODULE=wecare.settings.local
       - DATABASE_URL=postgres://wecare:wecare_local@db:5432/wecare

@@ -1,12 +1,43 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { logEngagement, markAsRead, markInProgress } from '../services/sessionService';
+import { logEngagement, markInProgress } from '../services/sessionService';
 import { Colors } from '../constants/colors';
 import { scaleFont } from '../constants/typography';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Linking } from 'react-native';
+import RenderHTML from 'react-native-render-html';
+
+const htmlTagStyles = {
+  body: { margin: 0, padding: 0 },
+  p: { fontSize: scaleFont(15), color: Colors.textPrimary, lineHeight: 29, marginBottom: 12 },
+  h1: { fontSize: scaleFont(24), fontWeight: '700', color: Colors.textPrimary, marginBottom: 12, marginTop: 4 },
+  h2: { fontSize: scaleFont(20), fontWeight: '700', color: Colors.textPrimary, marginBottom: 10, marginTop: 4 },
+  h3: { fontSize: scaleFont(17), fontWeight: '600', color: Colors.textPrimary, marginBottom: 8, marginTop: 4 },
+  h4: { fontSize: scaleFont(15), fontWeight: '600', color: Colors.textPrimary, marginBottom: 8 },
+  h5: { fontSize: scaleFont(15), fontWeight: '600', color: Colors.textPrimary, marginBottom: 8 },
+  h6: { fontSize: scaleFont(15), fontWeight: '600', color: Colors.textPrimary, marginBottom: 8 },
+  strong: { fontWeight: '700' },
+  em: { fontStyle: 'italic' },
+  u: { textDecorationLine: 'underline' },
+  s: { textDecorationLine: 'line-through' },
+  mark: { backgroundColor: '#FFF3A0', color: Colors.textPrimary },
+  // fontSize/lineHeight here matter beyond styling the <li> text itself — the bullet/
+  // number marker's own size is derived from the <ul>/<ol> tnode's computed style
+  // (react-native-render-html's ListElement), not from <li>, so without this the marker
+  // falls back to the library's 14px/18.2-lineHeight default and renders visibly
+  // smaller and mis-aligned against our larger scaleFont() body text.
+  ul: { fontSize: scaleFont(15), lineHeight: 29, color: Colors.textPrimary, marginBottom: 12 },
+  ol: { fontSize: scaleFont(15), lineHeight: 29, color: Colors.textPrimary, marginBottom: 12 },
+  li: { fontSize: scaleFont(15), color: Colors.textPrimary, lineHeight: 29, marginBottom: 14 },
+  a: { color: Colors.accent, textDecorationLine: 'underline' },
+  blockquote: {
+    fontSize: scaleFont(15), color: Colors.textSecondary, lineHeight: 29,
+    borderLeftWidth: 3, borderLeftColor: Colors.border, paddingLeft: 12, marginLeft: 0,
+  },
+  img: { borderRadius: 10, marginVertical: 10 },
+};
 
 export default function DailySessionScreen({ route, navigation }) {
   const { t } = useTranslation();
@@ -14,6 +45,9 @@ export default function DailySessionScreen({ route, navigation }) {
   const [activeTab, setActiveTab] = useState('Video');
   const [commentsExpanded, setCommentsExpanded] = useState(false);
   const [liked, setLiked] = useState(false);
+  const { width: windowWidth } = useWindowDimensions();
+  const contentWidth = windowWidth - 32; // matches styles.scroll's paddingHorizontal: 16 on each side
+  const htmlContent = course?.text_content_html || course?.textContentHtml || '';
 
   const tabStartTimeRef = React.useRef(Date.now());
   const activeTabRef = React.useRef('Video');
@@ -68,17 +102,12 @@ export default function DailySessionScreen({ route, navigation }) {
 
       const total = videoTimeRef.current + textTimeRef.current;
       if (total > 3) {
-        // "Completed" requires meeting a meaningful engagement threshold (60s) on every
-        // tab that actually has content for this session — a tab with no content for
-        // this session doesn't block completion. Falling short leaves it "in progress"
-        // (see markInProgress above), not completed.
-        const hasVideo = !!course?.video_url;
-        const hasText = !!course?.text_content;
-        const videoThresholdMet = !hasVideo || videoWatchSecondsRef.current >= 60;
-        const textThresholdMet = !hasText || textTimeRef.current >= 60;
-        if (course?.id && videoThresholdMet && textThresholdMet) {
-          markAsRead(course.id).catch(() => {});
-        }
+        // "Completed" (60s engagement threshold per tab that has content) is now decided
+        // server-side in log_engagement, against the cumulative totals it accumulates
+        // across every visit — not here. A client-local per-visit check would reset to 0
+        // on every mount, so time split across multiple app opens/closes (background,
+        // navigating away and back, etc.) could sum well past 60s overall while never
+        // crossing the threshold in any single visit.
         logEngagement({
           session_id: course?.id,
           course_title: course?.title || '',
@@ -183,9 +212,18 @@ export default function DailySessionScreen({ route, navigation }) {
           )}
           {activeTab === 'Text' && (
             <View style={styles.textContent}>
-              <Text style={styles.textBody}>
-                {course?.text_content || course?.textContent || ''}
-              </Text>
+              {htmlContent ? (
+                <RenderHTML
+                  contentWidth={contentWidth}
+                  source={{ html: htmlContent }}
+                  tagsStyles={htmlTagStyles}
+                  enableExperimentalMarginCollapsing
+                />
+              ) : (
+                <Text style={styles.textBody}>
+                  {course?.text_content || course?.textContent || ''}
+                </Text>
+              )}
             </View>
           )}
         </View>

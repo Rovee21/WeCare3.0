@@ -138,6 +138,23 @@ def mark_in_progress(request, session_id):
     return Response({"status": "ok"})
 
 
+def _mark_participant_session_read(participant, session):
+    """Shared by mark_read (unconditional) and log_engagement (threshold-gated): flags
+    a ParticipantSession as completed, backfilling started_at defensively if it's
+    somehow still unset."""
+    ps, _ = ParticipantSession.objects.get_or_create(participant=participant, session=session)
+    update_fields = []
+    if not ps.started_at:
+        ps.started_at = timezone.now()
+        update_fields.append("started_at")
+    if not ps.is_read:
+        ps.is_read = True
+        ps.read_at = timezone.now()
+        update_fields += ["is_read", "read_at"]
+    if update_fields:
+        ps.save(update_fields=update_fields)
+
+
 @extend_schema(request=None, responses=StatusResponseSerializer)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -150,19 +167,7 @@ def mark_read(request, session_id):
     except Session.DoesNotExist:
         return Response({"detail": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    ps, _ = ParticipantSession.objects.get_or_create(participant=participant, session=session)
-    update_fields = []
-    if not ps.started_at:
-        # Defensive fallback: if mark_in_progress didn't land (e.g. a dropped request),
-        # completing the session should still leave a started_at, not a gap.
-        ps.started_at = timezone.now()
-        update_fields.append("started_at")
-    if not ps.is_read:
-        ps.is_read = True
-        ps.read_at = timezone.now()
-        update_fields += ["is_read", "read_at"]
-    if update_fields:
-        ps.save(update_fields=update_fields)
+    _mark_participant_session_read(participant, session)
 
     return Response({"status": "ok"})
 
@@ -225,6 +230,21 @@ def log_engagement(request):
 
     if update_fields:
         log.save(update_fields=update_fields)
+        log.refresh_from_db()
+
+    # "Completed" requires meeting a meaningful engagement threshold (60s) on every tab
+    # that actually has content for this session — a tab with no content doesn't block
+    # completion. This is evaluated against the log's cumulative totals (accumulated via
+    # F() above across every visit), not just this one call's deltas, so time split
+    # across multiple app opens/closes is correctly summed instead of resetting each
+    # time the participant reopens the session.
+    if session:
+        has_video = bool(session.video_url)
+        has_text = bool(session.text_content or session.text_content_html)
+        video_threshold_met = not has_video or log.video_watch_seconds >= 60
+        text_threshold_met = not has_text or log.text_time_seconds >= 60
+        if video_threshold_met and text_threshold_met:
+            _mark_participant_session_read(participant, session)
 
     return Response({"status": "ok"}, status=status.HTTP_200_OK)
 

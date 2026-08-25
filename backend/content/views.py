@@ -52,7 +52,8 @@ def _filter_sessions_for_participant(participant):
         g1_ok = not session.target_group1 or session.target_group1 == participant.group1
         g2_ok = not session.target_group2 or session.target_group2 == participant.group2
         g3_ok = not session.target_group3 or session.target_group3 == participant.group3
-        if not (g1_ok and g2_ok and g3_ok):
+        rel_ok = not session.target_relationship or session.target_relationship == participant.adrd_relationship_group
+        if not (g1_ok and g2_ok and g3_ok and rel_ok):
             continue
 
         if session.week_number > effective_week:

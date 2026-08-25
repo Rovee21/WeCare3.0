@@ -146,12 +146,13 @@ class Participant(models.Model):
         from content.models import Session
         ids = []
         for s in Session.objects.filter(is_active=True, week_number=week_number).only(
-            "id", "target_group1", "target_group2", "target_group3"
+            "id", "target_group1", "target_group2", "target_group3", "target_relationship"
         ):
             g1_ok = not s.target_group1 or s.target_group1 == self.group1
             g2_ok = not s.target_group2 or s.target_group2 == self.group2
             g3_ok = not s.target_group3 or s.target_group3 == self.group3
-            if g1_ok and g2_ok and g3_ok:
+            rel_ok = not s.target_relationship or s.target_relationship == self.adrd_relationship_group
+            if g1_ok and g2_ok and g3_ok and rel_ok:
                 ids.append(s.id)
         return ids
 

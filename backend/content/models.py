@@ -28,6 +28,10 @@ class Session(models.Model):
         max_length=20, blank=True,
         choices=[('', 'All'), ('high', 'High Stress'), ('low', 'Low Stress')]
     )
+    target_relationship = models.CharField(
+        max_length=20, blank=True,
+        choices=[('', 'All'), ('spouse', 'Spouse'), ('children', 'Children / Adult Child'), ('relative', 'Other Relative')]
+    )
 
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

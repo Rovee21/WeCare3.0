@@ -53,9 +53,13 @@ class SessionAdmin(admin.ModelAdmin):
     list_display = [
         "week_number", "day_number", "title",
         "target_group1_display", "target_group2_display", "target_group3_display",
+        "target_relationship_display",
         "is_active",
     ]
-    list_filter = ["week_number", "target_group1", "target_group2", "target_group3", "is_active"]
+    list_filter = [
+        "week_number", "target_group1", "target_group2", "target_group3",
+        "target_relationship", "is_active",
+    ]
     search_fields = ["title", "title_zh"]
     inlines = [AdditionalResourceInline]
     list_per_page = 50
@@ -65,7 +69,7 @@ class SessionAdmin(admin.ModelAdmin):
             "fields": ("week_number", "day_number", "title", "title_zh", "is_active"),
         }),
         ("Cohort Targeting", {
-            "fields": ("target_group1", "target_group2", "target_group3"),
+            "fields": ("target_group1", "target_group2", "target_group3", "target_relationship"),
             "description": "Leave blank to show this session to all participants in that dimension.",
         }),
         ("Media URLs", {
@@ -98,6 +102,13 @@ class SessionAdmin(admin.ModelAdmin):
         return obj.get_target_group3_display()
     target_group3_display.short_description = "Group 3 (High/Low Stress)"
     target_group3_display.admin_order_field = "target_group3"
+
+    def target_relationship_display(self, obj):
+        if not obj.target_relationship:
+            return format_html('<span style="color:#999;">All</span>')
+        return obj.get_target_relationship_display()
+    target_relationship_display.short_description = "Relationship Target"
+    target_relationship_display.admin_order_field = "target_relationship"
 
 
 @admin.register(EngagementLog)

@@ -278,6 +278,7 @@ class ParticipantAdmin(admin.ModelAdmin):
             path('<int:participant_id>/stats/', self.admin_site.admin_view(self.stats_view), name='participant_stats'),
             path('import-csv/', self.admin_site.admin_view(self.csv_import_view), name='participant_csv_import'),
             path('send-notification/', self.admin_site.admin_view(self.send_notification_view), name='participant_send_notification'),
+            path('recordings/', self.admin_site.admin_view(self.recordings_view), name='participant_recordings'),
         ]
         return custom + urls
 
@@ -285,7 +286,38 @@ class ParticipantAdmin(admin.ModelAdmin):
         extra_context = extra_context or {}
         extra_context['import_csv_url'] = '/admin/participants/participant/import-csv/'
         extra_context['send_notification_url'] = '/admin/participants/participant/send-notification/'
+        extra_context['recordings_url'] = '/admin/participants/participant/recordings/'
         return super().changelist_view(request, extra_context=extra_context)
+
+    def recordings_view(self, request):
+        from journal.models import VoiceJournalEntry
+        from journal.services import audio_download_url_for_entry, audio_filename_for_entry
+
+        entries = VoiceJournalEntry.objects.select_related("participant").order_by("-submitted_at")
+        rows = []
+        for entry in entries:
+            try:
+                download_url = audio_download_url_for_entry(entry)
+            except RuntimeError:
+                download_url = None
+            rows.append({
+                "id": entry.id,
+                "participant": entry.participant,
+                "week_number": entry.week_number,
+                "recording_seconds": entry.recording_seconds,
+                "emotion": entry.get_emotion_label_display() or "—",
+                "vj_stress_level": entry.vj_stress_level,
+                "filename": audio_filename_for_entry(entry),
+                "download_url": download_url,
+                "submitted_at": entry.submitted_at,
+            })
+
+        context = {
+            **self.admin_site.each_context(request),
+            'title': 'Voice Recordings',
+            'rows': rows,
+        }
+        return TemplateResponse(request, 'admin/participants/recordings_dashboard.html', context)
     
     def csv_import_view(self, request):
         from django.template.response import TemplateResponse

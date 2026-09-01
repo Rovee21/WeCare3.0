@@ -7,6 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 from .models import VoiceJournalPrompt, VoiceJournalEntry
+from .services import upload_audio_to_s3
 from .serializers import (
     VoiceJournalPromptSerializer,
     VoiceJournalSubmitSerializer,
@@ -183,17 +184,26 @@ def direct_upload(request):
     if not audio_file:
         return Response({"detail": "No audio file provided."}, status=status.HTTP_400_BAD_REQUEST)
 
+    if not settings.AWS_S3_VJ_AUDIO_BUCKET:
+        return Response(
+            {"detail": "S3 not configured. Set AWS_S3_VJ_AUDIO_BUCKET in environment."},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
     recording_seconds = int(request.data.get("recording_seconds", 0))
     emotion_label = request.data.get("emotion_label", "")
     vj_stress_level = request.data.get("vj_stress_level")
     if vj_stress_level:
         vj_stress_level = int(vj_stress_level)
 
+    audio_s3_key = upload_audio_to_s3(
+        audio_file.read(), audio_file.content_type or "audio/mp4", participant, week
+    )
+
     entry = VoiceJournalEntry.objects.create(
         participant=participant,
         week_number=week,
-        audio_s3_key="",
-        audio_file=audio_file,
+        audio_s3_key=audio_s3_key,
         recording_seconds=recording_seconds,
         emotion_label=emotion_label,
         vj_stress_level=vj_stress_level,

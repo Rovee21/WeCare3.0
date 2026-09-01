@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 from .models import VoiceJournalEntry, VoiceJournalPrompt
+from .services import audio_download_url_for_entry
 
 
 class VoiceJournalPromptSerializer(serializers.ModelSerializer):
@@ -63,6 +64,8 @@ class VoiceJournalHistoryEntrySerializer(serializers.ModelSerializer):
 
     @extend_schema_field(serializers.URLField(allow_null=True))
     def get_audio_url(self, obj):
+        if obj.audio_s3_key:
+            return audio_download_url_for_entry(obj)
         if not obj.audio_file:
             return None
         request = self.context.get("request")

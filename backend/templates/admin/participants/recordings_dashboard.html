@@ -1,0 +1,59 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<style>
+  .stats-page { font-family: Arial, sans-serif; max-width: 1200px; }
+  .stats-table { width: 100%; border-collapse: collapse; margin-bottom: 32px; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+  .stats-table th { background: #1F6B9A; color: #fff; padding: 10px 14px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stats-table td { padding: 10px 14px; font-size: 13px; border-bottom: 1px solid #f0f0f0; color: #333; }
+  .stats-table tr:last-child td { border-bottom: none; }
+  .stats-table tbody tr td { background: #ffffff; }
+  .stats-table tbody tr:nth-child(even) td { background: #f4f8fc; }
+  .back-btn { display: inline-block; margin-bottom: 20px; padding: 8px 16px; background: #1F6B9A; color: #fff; border-radius: 6px; text-decoration: none; font-size: 13px; }
+  .back-btn:hover { background: #2E86C1; color: #fff; }
+  .download-link { color: #1F6B9A; font-weight: 600; text-decoration: none; }
+  .download-link:hover { text-decoration: underline; }
+</style>
+
+<div class="stats-page">
+  <a class="back-btn" href="/admin/participants/participant/">← Back to Participants</a>
+
+  <table class="stats-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Participant</th>
+        <th>Week</th>
+        <th>Duration</th>
+        <th>Emotion</th>
+        <th>Stress Level</th>
+        <th>Audio File</th>
+        <th>Download</th>
+        <th>Created At</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>{{ row.id }}</td>
+        <td><a href="/admin/participants/participant/{{ row.participant.pk }}/change/">{{ row.participant.participant_id }}</a></td>
+        <td>{{ row.week_number }}</td>
+        <td>{{ row.recording_seconds }}s</td>
+        <td>{{ row.emotion }}</td>
+        <td>{% if row.vj_stress_level %}{{ row.vj_stress_level }}/10{% else %}—{% endif %}</td>
+        <td>{{ row.filename }}</td>
+        <td>
+          {% if row.download_url %}
+            <a class="download-link" href="{{ row.download_url }}" target="_blank" rel="noopener noreferrer">🔊 Download</a>
+          {% else %}
+            —
+          {% endif %}
+        </td>
+        <td>{{ row.submitted_at|date:"M d, Y g:i a" }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="9" style="color:#999;text-align:center;padding:20px;">No Voice Journal recordings yet</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

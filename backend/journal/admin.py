@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from .models import VoiceJournalPrompt, VoiceJournalEntry
+from .services import audio_download_url_for_entry, audio_filename_for_entry
 
 
 @admin.register(VoiceJournalPrompt)
@@ -13,9 +14,9 @@ class VoiceJournalPromptAdmin(admin.ModelAdmin):
 @admin.register(VoiceJournalEntry)
 class VoiceJournalEntryAdmin(admin.ModelAdmin):
     list_display = [
-        "participant_label", "week_number", "duration_display",
+        "participant_label", "week_number", "duration_display", "emotion_display",
         "vj_stress_display", "transcription_status_display",
-        "transcript_excerpt", "submitted_at",
+        "audio_filename", "download_link", "submitted_at",
     ]
     list_filter = ["week_number", "transcription_status", "submitted_at"]
     search_fields = ["participant__email", "transcript"]
@@ -73,9 +74,21 @@ class VoiceJournalEntryAdmin(admin.ModelAdmin):
         return format_html('<span style="color:{};">{}</span>', color, label)
     transcription_status_display.short_description = "Transcription"
 
-    def transcript_excerpt(self, obj):
-        if not obj.transcript:
-            return format_html('<span style="color:#999;">No transcript</span>')
-        excerpt = obj.transcript[:80] + ("…" if len(obj.transcript) > 80 else "")
-        return format_html('<span style="font-style:italic;color:#555;">{}</span>', excerpt)
-    transcript_excerpt.short_description = "Transcript Preview"
+    def emotion_display(self, obj):
+        return obj.get_emotion_label_display() or "—"
+    emotion_display.short_description = "Emotion"
+    emotion_display.admin_order_field = "emotion_label"
+
+    def audio_filename(self, obj):
+        return audio_filename_for_entry(obj)
+    audio_filename.short_description = "Audio File"
+
+    def download_link(self, obj):
+        try:
+            url = audio_download_url_for_entry(obj)
+        except RuntimeError:
+            url = None
+        if not url:
+            return "—"
+        return format_html('<a href="{}" target="_blank" rel="noopener noreferrer">🔊 Download</a>', url)
+    download_link.short_description = "Download"

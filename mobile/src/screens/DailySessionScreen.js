@@ -47,7 +47,9 @@ export default function DailySessionScreen({ route, navigation }) {
   const [commentsExpanded, setCommentsExpanded] = useState(false);
   const [liked, setLiked] = useState(false);
   const [pdfViewerUrl, setPdfViewerUrl] = useState(null);
-  const { width: windowWidth } = useWindowDimensions();
+  const [pdfError, setPdfError] = useState(null);
+  const [textPdfError, setTextPdfError] = useState(null);
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const contentWidth = windowWidth - 32; // matches styles.scroll's paddingHorizontal: 16 on each side
   const htmlContent = course?.text_content_html || course?.textContentHtml || '';
   const textPdfUrl = course?.text_content_pdf_url || course?.textContentPdfUrl || '';
@@ -216,13 +218,21 @@ export default function DailySessionScreen({ route, navigation }) {
           {activeTab === 'Text' && (
             <View style={styles.textContent}>
               {textPdfUrl ? (
-                <TouchableOpacity
-                  style={styles.textPdfCard}
-                  onPress={() => setPdfViewerUrl(textPdfUrl)}
-                >
-                  <Text style={styles.textPdfIcon}>📄</Text>
-                  <Text style={styles.textPdfLabel}>{t('session.viewPdf')}</Text>
-                </TouchableOpacity>
+                textPdfError ? (
+                  <View style={styles.pdfErrorBox}>
+                    <Text style={styles.pdfErrorText}>Couldn't load this PDF.</Text>
+                    <Text style={styles.pdfErrorDetail}>{textPdfError}</Text>
+                  </View>
+                ) : (
+                  <Pdf
+                    source={{ uri: textPdfUrl, cache: true }}
+                    style={[styles.textPdfViewer, { height: windowHeight * 0.65 }]}
+                    onError={(error) => {
+                      console.log('[PDF] text load error', textPdfUrl, error);
+                      setTextPdfError(String(error?.message || error));
+                    }}
+                  />
+                )
               ) : htmlContent ? (
                 <RenderHTML
                   contentWidth={contentWidth}
@@ -250,6 +260,7 @@ export default function DailySessionScreen({ route, navigation }) {
                   onPress={() => {
                     logEngagement({ infographic_open_count: 1, course_title: course.title });
                     if (r.resource_type === 'PDF') {
+                      setPdfError(null);
                       setPdfViewerUrl(r.url);
                     } else {
                       Linking.openURL(r.url);
@@ -285,8 +296,20 @@ export default function DailySessionScreen({ route, navigation }) {
               <Text style={styles.backText}>← {t('session.courseList')}</Text>
             </TouchableOpacity>
           </View>
-          {pdfViewerUrl && (
-            <Pdf source={{ uri: pdfViewerUrl, cache: true }} style={styles.pdfViewer} />
+          {pdfError ? (
+            <View style={styles.pdfErrorBox}>
+              <Text style={styles.pdfErrorText}>Couldn't load this PDF.</Text>
+              <Text style={styles.pdfErrorDetail}>{pdfError}</Text>
+            </View>
+          ) : pdfViewerUrl && (
+            <Pdf
+              source={{ uri: pdfViewerUrl, cache: true }}
+              style={styles.pdfViewer}
+              onError={(error) => {
+                console.log('[PDF] load error', pdfViewerUrl, error);
+                setPdfError(String(error?.message || error));
+              }}
+            />
           )}
         </SafeAreaView>
       </Modal>
@@ -345,17 +368,7 @@ const styles = StyleSheet.create({
   placeholderLabel: { fontSize: scaleFont(14), color: Colors.textSecondary, marginTop: 8 },
   textContent: { padding: 4 },
   textBody: { fontSize: scaleFont(15), color: Colors.textPrimary, lineHeight: 29 },
-  textPdfCard: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
-    borderRadius: 12,
-    backgroundColor: Colors.cardBackground,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  textPdfIcon: { fontSize: scaleFont(40), marginBottom: 10 },
-  textPdfLabel: { fontSize: scaleFont(16), fontWeight: '600', color: Colors.accent },
+  textPdfViewer: { width: '100%', borderRadius: 12, backgroundColor: '#f2f2f2' },
   sectionLabel: { fontSize: scaleFont(15), fontWeight: '600', color: Colors.textPrimary, marginBottom: 12 },
   resourcesRow: { marginBottom: 16 },
   resourceCard: {
@@ -390,4 +403,7 @@ const styles = StyleSheet.create({
   emoji: { fontSize: scaleFont(28) },
   pdfViewerContainer: { flex: 1, backgroundColor: Colors.background },
   pdfViewer: { flex: 1, width: '100%' },
+  pdfErrorBox: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  pdfErrorText: { fontSize: scaleFont(16), fontWeight: '600', color: Colors.destructive, marginBottom: 8 },
+  pdfErrorDetail: { fontSize: scaleFont(13), color: Colors.textSecondary, textAlign: 'center' },
 });

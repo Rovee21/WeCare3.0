@@ -24,6 +24,7 @@ class SessionSerializer(serializers.ModelSerializer):
             "week_label", "media_types",
             "video_url", "audio_url", "text_content", "text_content_zh",
             "text_content_html", "text_content_html_zh",
+            "text_content_pdf_url", "text_content_pdf_url_zh",
             "resources", "is_read", "status", "locked",
         ]
 

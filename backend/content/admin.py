@@ -6,7 +6,7 @@ from .models import (
     Session, AdditionalResource, EngagementLog, NotificationLog, ParticipantSession,
     DailyNotificationSettings,
 )
-from .services import upload_video_to_s3, upload_pdf_to_s3, convert_docx_to_html
+from .services import upload_video_to_s3, upload_pdf_to_s3, upload_text_pdf_to_s3, convert_docx_to_html
 
 
 class AdditionalResourceInlineForm(forms.ModelForm):
@@ -64,6 +64,18 @@ class SessionAdminForm(forms.ModelForm):
         label="Upload Word document (Chinese)",
         help_text="Same as above, populates the Chinese HTML field below.",
     )
+    text_pdf_upload = forms.FileField(
+        required=False,
+        label="Upload PDF for Text section",
+        help_text="Uploads directly to S3 and fills in Text PDF URL below. When set, the "
+                   "app shows this PDF in an in-app viewer for the Text tab instead of the "
+                   "Word-doc-derived HTML above.",
+    )
+    text_pdf_upload_zh = forms.FileField(
+        required=False,
+        label="Upload PDF for Text section (Chinese)",
+        help_text="Same as above, populates the Chinese Text PDF URL field.",
+    )
 
     class Meta:
         model = Session
@@ -87,6 +99,18 @@ class SessionAdminForm(forms.ModelForm):
 
     def clean_docx_upload_zh(self):
         return self._clean_docx("docx_upload_zh")
+
+    def _clean_text_pdf(self, field_name):
+        f = self.cleaned_data.get(field_name)
+        if f and not (f.content_type == "application/pdf" or f.name.lower().endswith(".pdf")):
+            raise forms.ValidationError("Please upload a PDF file.")
+        return f
+
+    def clean_text_pdf_upload(self):
+        return self._clean_text_pdf("text_pdf_upload")
+
+    def clean_text_pdf_upload_zh(self):
+        return self._clean_text_pdf("text_pdf_upload_zh")
 
     def clean(self):
         cleaned_data = super().clean()
@@ -119,6 +143,24 @@ class SessionAdminForm(forms.ModelForm):
                 )
             except Exception as e:
                 raise forms.ValidationError(f"Word document (Chinese) conversion failed: {e}")
+
+        text_pdf = cleaned_data.get("text_pdf_upload")
+        if text_pdf and week is not None and day is not None:
+            try:
+                cleaned_data["text_content_pdf_url"] = upload_text_pdf_to_s3(
+                    text_pdf, SimpleNamespace(week_number=week, day_number=day)
+                )
+            except Exception as e:
+                raise forms.ValidationError(f"Text PDF upload failed: {e}")
+
+        text_pdf_zh = cleaned_data.get("text_pdf_upload_zh")
+        if text_pdf_zh and week is not None and day is not None:
+            try:
+                cleaned_data["text_content_pdf_url_zh"] = upload_text_pdf_to_s3(
+                    text_pdf_zh, SimpleNamespace(week_number=week, day_number=day)
+                )
+            except Exception as e:
+                raise forms.ValidationError(f"Text PDF (Chinese) upload failed: {e}")
 
         return cleaned_data
 
@@ -156,15 +198,19 @@ class SessionAdmin(admin.ModelAdmin):
             "fields": (
                 "docx_upload", "text_content_html",
                 "docx_upload_zh", "text_content_html_zh",
+                "text_pdf_upload", "text_content_pdf_url",
+                "text_pdf_upload_zh", "text_content_pdf_url_zh",
                 "text_content", "text_content_zh",
             ),
             "classes": ("wide",),
             "description": "Upload a .docx to auto-fill the HTML field directly below it — "
                             "embedded images are extracted and hosted on S3 automatically, in "
                             "reading order. You can hand-edit the resulting HTML afterward, same "
-                            "as editing Video URL after an MP4 upload. The plain-text fields "
-                            "below remain a fallback used by older sessions/app versions with no "
-                            "rich content.",
+                            "as editing Video URL after an MP4 upload. Alternatively, upload a "
+                            "PDF directly below — when a Text PDF URL is set, the app shows it in "
+                            "an in-app viewer for the Text tab instead of the HTML above. The "
+                            "plain-text fields below remain a fallback used by older sessions/app "
+                            "versions with no rich content.",
         }),
     )
 

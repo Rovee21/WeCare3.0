@@ -24,6 +24,15 @@ class Session(models.Model):
         blank=True,
         help_text="Chinese counterpart to text_content_html."
     )
+    text_content_pdf_url = models.URLField(
+        blank=True,
+        help_text="If set (via the admin's 'Upload PDF for Text section' field), the app "
+                   "shows an in-app PDF viewer for the Text tab instead of text_content_html."
+    )
+    text_content_pdf_url_zh = models.URLField(
+        blank=True,
+        help_text="Chinese counterpart to text_content_pdf_url."
+    )
 
     # Cohort targeting — blank means "show to all" for that dimension
     target_group1 = models.CharField(

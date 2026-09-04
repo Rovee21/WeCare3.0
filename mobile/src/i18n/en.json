@@ -33,6 +33,7 @@
   "session": {
     "courseList": "Course list",
     "additionalResources": "Additional materials",
+    "viewPdf": "View PDF",
     "markAsRead": "Mark as read",
     "comments": "Comments",
     "tabs": {

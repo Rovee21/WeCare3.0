@@ -79,6 +79,21 @@ def upload_pdf_to_s3(file, session) -> str:
     return f"https://{settings.AWS_S3_BUCKET}.s3.{settings.AWS_REGION}.amazonaws.com/{key}"
 
 
+def upload_text_pdf_to_s3(file, session) -> str:
+    """Uploads a Text-section PDF (viewed in-app instead of the docx-derived HTML),
+    mirroring upload_pdf_to_s3's pattern under its own prefix. `session` only needs
+    .week_number/.day_number."""
+    if not settings.AWS_S3_BUCKET:
+        raise RuntimeError("S3 not configured. Set AWS_S3_BUCKET in environment.")
+    key = f"curriculum/text_pdfs/w{session.week_number}/d{session.day_number}/{uuid.uuid4()}.pdf"
+    s3 = _s3_client()
+    s3.upload_fileobj(
+        file, settings.AWS_S3_BUCKET, key,
+        ExtraArgs={"ContentType": "application/pdf", "ServerSideEncryption": "AES256"},
+    )
+    return f"https://{settings.AWS_S3_BUCKET}.s3.{settings.AWS_REGION}.amazonaws.com/{key}"
+
+
 def convert_docx_to_html(docx_file, session) -> str:
     """Converts an uploaded .docx (file-like, opened in binary mode) to sanitized HTML,
     uploading each embedded image to S3 inline at its correct reading-order position via

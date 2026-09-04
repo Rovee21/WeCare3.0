@@ -381,6 +381,16 @@ export interface components {
             text_content_html?: string;
             /** @description Chinese counterpart to text_content_html. */
             text_content_html_zh?: string;
+            /**
+             * Format: uri
+             * @description If set (via the admin's 'Upload PDF for Text section' field), the app shows an in-app PDF viewer for the Text tab instead of text_content_html.
+             */
+            text_content_pdf_url?: string;
+            /**
+             * Format: uri
+             * @description Chinese counterpart to text_content_pdf_url.
+             */
+            text_content_pdf_url_zh?: string;
             readonly resources: components["schemas"]["AdditionalResource"][];
             readonly is_read: boolean;
             readonly status: components["schemas"]["StatusEnum"];

@@ -50,6 +50,7 @@ export default function DailySessionScreen({ route, navigation }) {
   const { width: windowWidth } = useWindowDimensions();
   const contentWidth = windowWidth - 32; // matches styles.scroll's paddingHorizontal: 16 on each side
   const htmlContent = course?.text_content_html || course?.textContentHtml || '';
+  const textPdfUrl = course?.text_content_pdf_url || course?.textContentPdfUrl || '';
 
   const tabStartTimeRef = React.useRef(Date.now());
   const activeTabRef = React.useRef('Video');
@@ -214,7 +215,15 @@ export default function DailySessionScreen({ route, navigation }) {
           )}
           {activeTab === 'Text' && (
             <View style={styles.textContent}>
-              {htmlContent ? (
+              {textPdfUrl ? (
+                <TouchableOpacity
+                  style={styles.textPdfCard}
+                  onPress={() => setPdfViewerUrl(textPdfUrl)}
+                >
+                  <Text style={styles.textPdfIcon}>📄</Text>
+                  <Text style={styles.textPdfLabel}>{t('session.viewPdf')}</Text>
+                </TouchableOpacity>
+              ) : htmlContent ? (
                 <RenderHTML
                   contentWidth={contentWidth}
                   source={{ html: htmlContent }}
@@ -336,6 +345,17 @@ const styles = StyleSheet.create({
   placeholderLabel: { fontSize: scaleFont(14), color: Colors.textSecondary, marginTop: 8 },
   textContent: { padding: 4 },
   textBody: { fontSize: scaleFont(15), color: Colors.textPrimary, lineHeight: 29 },
+  textPdfCard: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    borderRadius: 12,
+    backgroundColor: Colors.cardBackground,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  textPdfIcon: { fontSize: scaleFont(40), marginBottom: 10 },
+  textPdfLabel: { fontSize: scaleFont(16), fontWeight: '600', color: Colors.accent },
   sectionLabel: { fontSize: scaleFont(15), fontWeight: '600', color: Colors.textPrimary, marginBottom: 12 },
   resourcesRow: { marginBottom: 16 },
   resourceCard: {

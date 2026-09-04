@@ -595,6 +595,17 @@ components:
         text_content_html_zh:
           type: string
           description: Chinese counterpart to text_content_html.
+        text_content_pdf_url:
+          type: string
+          format: uri
+          description: If set (via the admin's 'Upload PDF for Text section' field),
+            the app shows an in-app PDF viewer for the Text tab instead of text_content_html.
+          maxLength: 200
+        text_content_pdf_url_zh:
+          type: string
+          format: uri
+          description: Chinese counterpart to text_content_pdf_url.
+          maxLength: 200
         resources:
           type: array
           items:

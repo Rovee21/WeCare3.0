@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, useWindowDimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, useWindowDimensions, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { logEngagement, markInProgress } from '../services/sessionService';
@@ -8,6 +8,7 @@ import { scaleFont } from '../constants/typography';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Linking } from 'react-native';
 import RenderHTML from 'react-native-render-html';
+import Pdf from 'react-native-pdf';
 
 const htmlTagStyles = {
   body: { margin: 0, padding: 0 },
@@ -45,6 +46,7 @@ export default function DailySessionScreen({ route, navigation }) {
   const [activeTab, setActiveTab] = useState('Video');
   const [commentsExpanded, setCommentsExpanded] = useState(false);
   const [liked, setLiked] = useState(false);
+  const [pdfViewerUrl, setPdfViewerUrl] = useState(null);
   const { width: windowWidth } = useWindowDimensions();
   const contentWidth = windowWidth - 32; // matches styles.scroll's paddingHorizontal: 16 on each side
   const htmlContent = course?.text_content_html || course?.textContentHtml || '';
@@ -238,7 +240,11 @@ export default function DailySessionScreen({ route, navigation }) {
                   style={styles.resourceCard}
                   onPress={() => {
                     logEngagement({ infographic_open_count: 1, course_title: course.title });
-                    Linking.openURL(r.url);
+                    if (r.resource_type === 'PDF') {
+                      setPdfViewerUrl(r.url);
+                    } else {
+                      Linking.openURL(r.url);
+                    }
                   }}
                 >
                   <View style={styles.resourceThumb}>
@@ -262,6 +268,19 @@ export default function DailySessionScreen({ route, navigation }) {
           </TouchableOpacity>
         ))}
       </View>
+
+      <Modal visible={!!pdfViewerUrl} animationType="slide" onRequestClose={() => setPdfViewerUrl(null)}>
+        <SafeAreaView style={styles.pdfViewerContainer}>
+          <View style={styles.topBar}>
+            <TouchableOpacity onPress={() => setPdfViewerUrl(null)} style={styles.backButton}>
+              <Text style={styles.backText}>← {t('session.courseList')}</Text>
+            </TouchableOpacity>
+          </View>
+          {pdfViewerUrl && (
+            <Pdf source={{ uri: pdfViewerUrl, cache: true }} style={styles.pdfViewer} />
+          )}
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -349,4 +368,6 @@ const styles = StyleSheet.create({
   },
   emojiButton: { padding: 6 },
   emoji: { fontSize: scaleFont(28) },
+  pdfViewerContainer: { flex: 1, backgroundColor: Colors.background },
+  pdfViewer: { flex: 1, width: '100%' },
 });

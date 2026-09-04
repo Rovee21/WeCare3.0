@@ -6,13 +6,43 @@ from .models import (
     Session, AdditionalResource, EngagementLog, NotificationLog, ParticipantSession,
     DailyNotificationSettings,
 )
-from .services import upload_video_to_s3, convert_docx_to_html
+from .services import upload_video_to_s3, upload_pdf_to_s3, convert_docx_to_html
+
+
+class AdditionalResourceInlineForm(forms.ModelForm):
+    url = forms.URLField(
+        required=False,
+        help_text="Paste a link (Article/Video/website), or leave blank and use the "
+                   "PDF upload field instead.",
+    )
+    pdf_upload = forms.FileField(
+        required=False,
+        label="Upload PDF",
+        help_text="Uploads directly to S3 and fills in URL above.",
+    )
+
+    class Meta:
+        model = AdditionalResource
+        fields = ["title", "title_zh", "resource_type", "pdf_upload", "url"]
+
+    def clean_pdf_upload(self):
+        f = self.cleaned_data.get("pdf_upload")
+        if f and not (f.content_type == "application/pdf" or f.name.lower().endswith(".pdf")):
+            raise forms.ValidationError("Please upload a PDF file.")
+        return f
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if not cleaned_data.get("url") and not cleaned_data.get("pdf_upload"):
+            raise forms.ValidationError("Provide either a URL or a PDF upload.")
+        return cleaned_data
 
 
 class AdditionalResourceInline(admin.TabularInline):
     model = AdditionalResource
+    form = AdditionalResourceInlineForm
     extra = 1
-    fields = ["title", "title_zh", "resource_type", "url"]
+    fields = ["title", "title_zh", "resource_type", "pdf_upload", "url"]
 
 
 class SessionAdminForm(forms.ModelForm):
@@ -137,6 +167,15 @@ class SessionAdmin(admin.ModelAdmin):
                             "rich content.",
         }),
     )
+
+    def save_formset(self, request, form, formset, change):
+        if formset.model is AdditionalResource:
+            session = form.instance  # already saved: week_number/day_number available
+            for f in formset.forms:
+                pdf = f.cleaned_data.get("pdf_upload") if f.cleaned_data else None
+                if pdf:
+                    f.instance.url = upload_pdf_to_s3(pdf, session)
+        formset.save()
 
     def target_group1_display(self, obj):
         if not obj.target_group1:

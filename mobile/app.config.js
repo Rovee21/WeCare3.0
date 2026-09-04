@@ -16,7 +16,7 @@ module.exports = {
       policy: "appVersion"
     },
     android: {
-      package: "com.wecaremason.wecare",
+      package: "com.wecaremason.wecare3",
       googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? "./google-services.json",
       permissions: [
         "android.permission.RECORD_AUDIO",

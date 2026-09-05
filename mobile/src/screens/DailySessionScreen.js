@@ -226,6 +226,7 @@ export default function DailySessionScreen({ route, navigation }) {
                 ) : (
                   <Pdf
                     source={{ uri: textPdfUrl, cache: true }}
+                    trustAllCerts={false}
                     style={[styles.textPdfViewer, { height: windowHeight * 0.65 }]}
                     onError={(error) => {
                       console.log('[PDF] text load error', textPdfUrl, error);
@@ -304,6 +305,7 @@ export default function DailySessionScreen({ route, navigation }) {
           ) : pdfViewerUrl && (
             <Pdf
               source={{ uri: pdfViewerUrl, cache: true }}
+              trustAllCerts={false}
               style={styles.pdfViewer}
               onError={(error) => {
                 console.log('[PDF] load error', pdfViewerUrl, error);

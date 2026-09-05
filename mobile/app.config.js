@@ -20,7 +20,8 @@ module.exports = {
       googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? "./google-services.json",
       permissions: [
         "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "INTERNET"
       ]
     },
     ios: {
@@ -34,6 +35,8 @@ module.exports = {
       "expo-secure-store",
       "expo-audio",
       "expo-video",
+      "@config-plugins/react-native-blob-util",
+      "@config-plugins/react-native-pdf",
       // [
       //   "expo-notifications"
       // ]

@@ -5,8 +5,8 @@
   "main": "App.js",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
     "generate:api": "openapi-typescript ../backend/generated/openapi-schema.yaml -o src/generated/schema.d.ts",
     "e2e:ios": "../e2e/run.sh"
@@ -28,6 +28,7 @@
     "expo-constants": "~18.0.13",
     "expo-dev-client": "~6.0.21",
     "expo-device": "~8.0.10",
+    "expo-file-system": "~19.0.24",
     "expo-notifications": "~0.32.17",
     "expo-secure-store": "~15.0.8",
     "expo-updates": "~29.0.19",

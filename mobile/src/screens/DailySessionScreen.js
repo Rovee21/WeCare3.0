@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, useWindowDimensions, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, useWindowDimensions, Modal, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { logEngagement, markInProgress } from '../services/sessionService';
@@ -9,6 +9,35 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import { Linking } from 'react-native';
 import RenderHTML from 'react-native-render-html';
 import Pdf from 'react-native-pdf';
+import { File, Paths } from 'expo-file-system';
+
+// react-native-pdf's remote-URL loading goes through react-native-blob-util's native
+// downloader, which is unreliable under React Native's New Architecture (fails even for
+// unrelated third-party URLs, not just our S3 host). Downloading via expo-file-system
+// first and pointing Pdf at the resulting local file sidesteps that broken path entirely.
+function useDownloadedPdf(remoteUrl) {
+  const [localUri, setLocalUri] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    setLocalUri(null);
+    setError(null);
+    if (!remoteUrl) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const file = await File.downloadFileAsync(remoteUrl, Paths.cache, { idempotent: true });
+        if (!cancelled) setLocalUri(file.uri);
+      } catch (e) {
+        console.log('[PDF] download failed', remoteUrl, e);
+        if (!cancelled) setError(String(e?.message || e));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [remoteUrl]);
+
+  return { localUri, error };
+}
 
 const htmlTagStyles = {
   body: { margin: 0, padding: 0 },
@@ -53,6 +82,8 @@ export default function DailySessionScreen({ route, navigation }) {
   const contentWidth = windowWidth - 32; // matches styles.scroll's paddingHorizontal: 16 on each side
   const htmlContent = course?.text_content_html || course?.textContentHtml || '';
   const textPdfUrl = course?.text_content_pdf_url || course?.textContentPdfUrl || '';
+  const { localUri: textPdfLocalUri, error: textPdfDownloadError } = useDownloadedPdf(textPdfUrl);
+  const { localUri: pdfViewerLocalUri, error: pdfViewerDownloadError } = useDownloadedPdf(pdfViewerUrl);
 
   const tabStartTimeRef = React.useRef(Date.now());
   const activeTabRef = React.useRef('Video');
@@ -218,18 +249,21 @@ export default function DailySessionScreen({ route, navigation }) {
           {activeTab === 'Text' && (
             <View style={styles.textContent}>
               {textPdfUrl ? (
-                textPdfError ? (
+                textPdfError || textPdfDownloadError ? (
                   <View style={styles.pdfErrorBox}>
                     <Text style={styles.pdfErrorText}>Couldn't load this PDF.</Text>
-                    <Text style={styles.pdfErrorDetail}>{textPdfError}</Text>
+                    <Text style={styles.pdfErrorDetail}>{textPdfError || textPdfDownloadError}</Text>
+                  </View>
+                ) : !textPdfLocalUri ? (
+                  <View style={[styles.textPdfViewer, { height: windowHeight * 0.65, alignItems: 'center', justifyContent: 'center' }]}>
+                    <ActivityIndicator color={Colors.primary} />
                   </View>
                 ) : (
                   <Pdf
-                    source={{ uri: textPdfUrl, cache: true }}
-                    trustAllCerts={false}
+                    source={{ uri: textPdfLocalUri }}
                     style={[styles.textPdfViewer, { height: windowHeight * 0.65 }]}
                     onError={(error) => {
-                      console.log('[PDF] text load error', textPdfUrl, error);
+                      console.log('[PDF] text load error', textPdfLocalUri, error);
                       setTextPdfError(String(error?.message || error));
                     }}
                   />
@@ -297,18 +331,23 @@ export default function DailySessionScreen({ route, navigation }) {
               <Text style={styles.backText}>← {t('session.courseList')}</Text>
             </TouchableOpacity>
           </View>
-          {pdfError ? (
+          {pdfError || pdfViewerDownloadError ? (
             <View style={styles.pdfErrorBox}>
               <Text style={styles.pdfErrorText}>Couldn't load this PDF.</Text>
-              <Text style={styles.pdfErrorDetail}>{pdfError}</Text>
+              <Text style={styles.pdfErrorDetail}>{pdfError || pdfViewerDownloadError}</Text>
             </View>
-          ) : pdfViewerUrl && (
+          ) : !pdfViewerLocalUri ? (
+            pdfViewerUrl && (
+              <View style={[styles.pdfViewer, { alignItems: 'center', justifyContent: 'center' }]}>
+                <ActivityIndicator color={Colors.primary} />
+              </View>
+            )
+          ) : (
             <Pdf
-              source={{ uri: pdfViewerUrl, cache: true }}
-              trustAllCerts={false}
+              source={{ uri: pdfViewerLocalUri }}
               style={styles.pdfViewer}
               onError={(error) => {
-                console.log('[PDF] load error', pdfViewerUrl, error);
+                console.log('[PDF] load error', pdfViewerLocalUri, error);
                 setPdfError(String(error?.message || error));
               }}
             />

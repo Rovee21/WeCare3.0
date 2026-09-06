@@ -365,10 +365,6 @@ components:
           description: Actual video playback time (from pressing play to pausing/stopping),
             as opposed to video_time_seconds which measures time the Video tab was
             simply active/visible.
-        audio_time_seconds:
-          type: integer
-          maximum: 2147483647
-          minimum: 0
         text_time_seconds:
           type: integer
           maximum: 2147483647
@@ -411,6 +407,8 @@ components:
         code:
           type: string
           maxLength: 50
+        language:
+          $ref: '#/components/schemas/LanguageEnum'
       required:
       - code
     EnrollResponse:
@@ -578,9 +576,10 @@ components:
           type: string
           format: uri
           maxLength: 200
-        audio_url:
+        video_url_zh:
           type: string
           format: uri
+          description: Chinese counterpart to video_url.
           maxLength: 200
         text_content:
           type: string

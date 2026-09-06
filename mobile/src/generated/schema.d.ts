@@ -281,7 +281,6 @@ export interface components {
             video_time_seconds?: number;
             /** @description Actual video playback time (from pressing play to pausing/stopping), as opposed to video_time_seconds which measures time the Video tab was simply active/visible. */
             video_watch_seconds?: number;
-            audio_time_seconds?: number;
             text_time_seconds?: number;
             read_count?: number;
             /** Format: double */
@@ -296,6 +295,7 @@ export interface components {
         };
         Enroll: {
             code: string;
+            language?: components["schemas"]["LanguageEnum"];
         };
         EnrollResponse: {
             token: string;
@@ -373,8 +373,11 @@ export interface components {
             readonly media_types: string[];
             /** Format: uri */
             video_url?: string;
-            /** Format: uri */
-            audio_url?: string;
+            /**
+             * Format: uri
+             * @description Chinese counterpart to video_url.
+             */
+            video_url_zh?: string;
             text_content?: string;
             text_content_zh?: string;
             /** @description Rich HTML (headings, formatting, inline images hosted on S3) generated from an uploaded .docx via the admin's 'Upload Word document' field. Can be hand-edited afterward. Falls back to text_content on mobile when empty. */

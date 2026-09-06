@@ -18,6 +18,7 @@ import { File, Paths } from 'expo-file-system';
 function useDownloadedPdf(remoteUrl) {
   const [localUri, setLocalUri] = useState(null);
   const [error, setError] = useState(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     setLocalUri(null);
@@ -34,9 +35,9 @@ function useDownloadedPdf(remoteUrl) {
       }
     })();
     return () => { cancelled = true; };
-  }, [remoteUrl]);
+  }, [remoteUrl, attempt]);
 
-  return { localUri, error };
+  return { localUri, error, retry: () => setAttempt(a => a + 1) };
 }
 
 const htmlTagStyles = {
@@ -82,8 +83,8 @@ export default function DailySessionScreen({ route, navigation }) {
   const contentWidth = windowWidth - 32; // matches styles.scroll's paddingHorizontal: 16 on each side
   const htmlContent = course?.text_content_html || course?.textContentHtml || '';
   const textPdfUrl = course?.text_content_pdf_url || course?.textContentPdfUrl || '';
-  const { localUri: textPdfLocalUri, error: textPdfDownloadError } = useDownloadedPdf(textPdfUrl);
-  const { localUri: pdfViewerLocalUri, error: pdfViewerDownloadError } = useDownloadedPdf(pdfViewerUrl);
+  const { localUri: textPdfLocalUri, error: textPdfDownloadError, retry: retryTextPdf } = useDownloadedPdf(textPdfUrl);
+  const { localUri: pdfViewerLocalUri, error: pdfViewerDownloadError, retry: retryPdfViewer } = useDownloadedPdf(pdfViewerUrl);
 
   const tabStartTimeRef = React.useRef(Date.now());
   const activeTabRef = React.useRef('Video');
@@ -256,6 +257,15 @@ export default function DailySessionScreen({ route, navigation }) {
                   <View style={styles.pdfErrorBox}>
                     <Text style={styles.pdfErrorText}>Couldn't load this PDF.</Text>
                     <Text style={styles.pdfErrorDetail}>{textPdfError || textPdfDownloadError}</Text>
+                    <TouchableOpacity
+                      style={styles.pdfRetryButton}
+                      onPress={() => {
+                        setTextPdfError(null);
+                        retryTextPdf();
+                      }}
+                    >
+                      <Text style={styles.pdfRetryText}>Retry</Text>
+                    </TouchableOpacity>
                   </View>
                 ) : !textPdfLocalUri ? (
                   <View style={[styles.textPdfViewer, { height: windowHeight * 0.65, alignItems: 'center', justifyContent: 'center' }]}>
@@ -338,6 +348,15 @@ export default function DailySessionScreen({ route, navigation }) {
             <View style={styles.pdfErrorBox}>
               <Text style={styles.pdfErrorText}>Couldn't load this PDF.</Text>
               <Text style={styles.pdfErrorDetail}>{pdfError || pdfViewerDownloadError}</Text>
+              <TouchableOpacity
+                style={styles.pdfRetryButton}
+                onPress={() => {
+                  setPdfError(null);
+                  retryPdfViewer();
+                }}
+              >
+                <Text style={styles.pdfRetryText}>Retry</Text>
+              </TouchableOpacity>
             </View>
           ) : !pdfViewerLocalUri ? (
             pdfViewerUrl && (
@@ -450,4 +469,12 @@ const styles = StyleSheet.create({
   pdfErrorBox: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   pdfErrorText: { fontSize: scaleFont(16), fontWeight: '600', color: Colors.destructive, marginBottom: 8 },
   pdfErrorDetail: { fontSize: scaleFont(13), color: Colors.textSecondary, textAlign: 'center' },
+  pdfRetryButton: {
+    marginTop: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    backgroundColor: Colors.accent,
+  },
+  pdfRetryText: { fontSize: scaleFont(14), fontWeight: '600', color: Colors.white },
 });

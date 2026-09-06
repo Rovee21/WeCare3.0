@@ -1,6 +1,7 @@
 from django.template.response import TemplateResponse
 from django.urls import path
 from django.contrib import admin
+from django.conf import settings
 from django.core.mail import send_mail
 from django.utils.html import format_html
 from django.db.models import Count, Max, Q
@@ -764,7 +765,7 @@ class ParticipantAdmin(admin.ModelAdmin):
                     f"If you have any questions, reply to this email or contact us at wecaremason@gmail.com\n\n"
                     f"— The WeCare Research Team"
                 ),
-                from_email="wecaremason@gmail.com",
+                from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[p.email],
                 fail_silently=False,
             )

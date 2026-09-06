@@ -19,6 +19,7 @@ def enroll(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     code = serializer.validated_data["code"].strip().upper()
+    language = serializer.validated_data.get("language")
 
     try:
         participant = Participant.objects.get(enrollment_code=code)
@@ -33,8 +34,12 @@ def enroll(request):
         # creating a duplicate. Old and new devices intentionally share the same
         # token for now (stakeholder decision) — revisit if old-device logout is
         # wanted later.
+        update_fields = ["enrollment_code"]
         participant.enrollment_code = None  # single-use: invalidate immediately
-        participant.save(update_fields=["enrollment_code"])
+        if language:
+            participant.language = language
+            update_fields.append("language")
+        participant.save(update_fields=update_fields)
         token = Token.objects.get(user=participant.user)
     else:
         username = f"participant_{participant.pk}"
@@ -46,7 +51,11 @@ def enroll(request):
         participant.is_enrolled = True
         participant.enrolled_at = timezone.now()
         participant.enrollment_code = None  # single-use: invalidate immediately
-        participant.save(update_fields=["user", "is_enrolled", "enrolled_at", "enrollment_code"])
+        update_fields = ["user", "is_enrolled", "enrolled_at", "enrollment_code"]
+        if language:
+            participant.language = language
+            update_fields.append("language")
+        participant.save(update_fields=update_fields)
 
         token, _ = Token.objects.get_or_create(user=user)
 

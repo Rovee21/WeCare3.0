@@ -5,6 +5,7 @@ from .models import Participant
 
 class EnrollSerializer(serializers.Serializer):
     code = serializers.CharField(max_length=50)
+    language = serializers.ChoiceField(choices=Participant.LANGUAGE_CHOICES, required=False)
 
 
 class EnrollResponseSerializer(serializers.Serializer):

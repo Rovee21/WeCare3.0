@@ -264,10 +264,6 @@ export default function DailySessionScreen({ route, navigation }) {
                 ) : (
                   <Pdf
                     source={{ uri: textPdfLocalUri }}
-                    fitPolicy={0}
-                    scale={1.15}
-                    minScale={1}
-                    maxScale={3}
                     style={[styles.textPdfViewer, { height: windowHeight * 0.65 }]}
                     onError={(error) => {
                       console.log('[PDF] text load error', textPdfLocalUri, error);
@@ -352,10 +348,6 @@ export default function DailySessionScreen({ route, navigation }) {
           ) : (
             <Pdf
               source={{ uri: pdfViewerLocalUri }}
-              fitPolicy={0}
-              scale={1.15}
-              minScale={1}
-              maxScale={3}
               style={styles.pdfViewer}
               onError={(error) => {
                 console.log('[PDF] load error', pdfViewerLocalUri, error);

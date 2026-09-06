@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { enrollWithCode } from '../services/authService';
@@ -7,16 +7,27 @@ import { getUserProfile } from '../services/userService';
 import { Colors } from '../constants/colors';
 import { scaleFont } from '../constants/typography';
 
+const LANGUAGES = [
+  { code: 'en', label: 'English' },
+  { code: 'zh', label: '中文 Chinese' },
+];
+
 export default function EnrollmentScreen({ navigation }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [code, setCode] = useState('');
+  const [language, setLanguage] = useState('en');
   const [loading, setLoading] = useState(false);
+
+  async function handleSelectLanguage(langCode) {
+    setLanguage(langCode);
+    await i18n.changeLanguage(langCode);
+  }
 
   async function handleEnroll() {
     if (!code.trim()) return;
     setLoading(true);
     try {
-      await enrollWithCode(code.trim());
+      await enrollWithCode(code.trim(), language);
       const { registerForPushNotifications, sendTokenToBackend } = await import('../services/notificationService');
       const pushToken = await registerForPushNotifications();
       if (pushToken) {
@@ -45,37 +56,61 @@ export default function EnrollmentScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
 
-        <View style={styles.card}>
-          <Text style={styles.title}>{t('enrollment.title')}</Text>
-          <Text style={styles.subtitle}>{t('enrollment.subtitle')}</Text>
+          <View style={styles.languageToggle}>
+            {LANGUAGES.map(lang => (
+              <TouchableOpacity
+                key={lang.code}
+                testID={`enrollment-language-${lang.code}`}
+                style={[styles.languagePill, language === lang.code && styles.languagePillActive]}
+                onPress={() => handleSelectLanguage(lang.code)}
+              >
+                <Text style={[styles.languagePillText, language === lang.code && styles.languagePillTextActive]}>
+                  {lang.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-          <Text style={styles.inputLabel}>{t('enrollment.userIdLabel')}</Text>
-          <TextInput
-            testID="enrollment-code-input"
-            style={styles.input}
-            placeholder={t('enrollment.codePlaceholder')}
-            placeholderTextColor={Colors.textSecondary}
-            value={code}
-            onChangeText={setCode}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
+          <View style={styles.card}>
+            <Text style={styles.title}>{t('enrollment.title')}</Text>
+            <Text style={styles.subtitle}>{t('enrollment.subtitle')}</Text>
 
-          <TouchableOpacity
-            testID="enrollment-submit-button"
-            style={[styles.button, loading && styles.buttonDisabled]}
-            onPress={handleEnroll}
-            disabled={loading}
-          >
-            <Text style={styles.buttonText}>{t('enrollment.cta')}</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+            <Text style={styles.inputLabel}>{t('enrollment.userIdLabel')}</Text>
+            <TextInput
+              testID="enrollment-code-input"
+              style={styles.input}
+              placeholder={t('enrollment.codePlaceholder')}
+              placeholderTextColor={Colors.textSecondary}
+              value={code}
+              onChangeText={setCode}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
 
-      <Text style={styles.privacy}>{t('enrollment.privacy')}</Text>
+            <TouchableOpacity
+              testID="enrollment-submit-button"
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={handleEnroll}
+              disabled={loading}
+            >
+              <Text style={styles.buttonText}>{t('enrollment.cta')}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.privacy}>{t('enrollment.privacy')}</Text>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -84,18 +119,44 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
-    justifyContent: 'space-between',
   },
   content: {
-    flex: 1,
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
+    paddingVertical: 24,
   },
   logo: {
     width: 120,
     height: 120,
-    marginBottom: 32,
+    marginBottom: 24,
+  },
+  languageToggle: {
+    flexDirection: 'row',
+    backgroundColor: Colors.white,
+    borderRadius: 10,
+    padding: 4,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  languagePill: {
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+    borderRadius: 8,
+  },
+  languagePillActive: {
+    backgroundColor: Colors.accentLight,
+  },
+  languagePillText: {
+    fontSize: scaleFont(14),
+    fontWeight: '500',
+    color: Colors.textSecondary,
+  },
+  languagePillTextActive: {
+    color: Colors.accent,
+    fontWeight: '700',
   },
   card: {
     width: '100%',
@@ -158,7 +219,7 @@ const styles = StyleSheet.create({
     fontSize: scaleFont(12),
     color: Colors.textSecondary,
     textAlign: 'center',
-    paddingBottom: 16,
+    paddingTop: 20,
     paddingHorizontal: 32,
   },
 });

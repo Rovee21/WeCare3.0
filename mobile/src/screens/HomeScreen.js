@@ -7,6 +7,7 @@ import { getTodaysSession, getAllSessions } from '../services/sessionService';
 import { getStoredProfile } from '../services/authService';
 import { Colors } from '../constants/colors';
 import { scaleFont } from '../constants/typography';
+import { isZhLanguage, localizedOrNull } from '../utils/localization';
 
 function IconCircle({ emoji }) {
   return (
@@ -17,7 +18,8 @@ function IconCircle({ emoji }) {
 }
 
 export default function HomeScreen({ navigation }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isZh = isZhLanguage(i18n.language);
   const [todaysSession, setTodaysSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -66,7 +68,9 @@ export default function HomeScreen({ navigation }) {
             <Text style={styles.sessionLabel}>
               {t('home.todaysSession')} · WEEK {todaysSession.week_number}
             </Text>
-            <Text style={styles.sessionTitle}>{todaysSession.title}</Text>
+            <Text style={styles.sessionTitle}>
+              {localizedOrNull(todaysSession, 'title', isZh) ?? t('common.notTranslated')}
+            </Text>
             <View style={styles.startButton}>
               <Text style={styles.startButtonText}>{t('home.startSession')}</Text>
             </View>

@@ -10,6 +10,7 @@ import { Linking } from 'react-native';
 import RenderHTML from 'react-native-render-html';
 import Pdf from 'react-native-pdf';
 import { File, Paths } from 'expo-file-system';
+import { isZhLanguage, localizedOrNull } from '../utils/localization';
 
 // react-native-pdf's remote-URL loading goes through react-native-blob-util's native
 // downloader, which is unreliable under React Native's New Architecture (fails even for
@@ -71,8 +72,9 @@ const htmlTagStyles = {
 };
 
 export default function DailySessionScreen({ route, navigation }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { course } = route.params;
+  const isZh = isZhLanguage(i18n.language);
   const [activeTab, setActiveTab] = useState('Video');
   const [commentsExpanded, setCommentsExpanded] = useState(false);
   const [liked, setLiked] = useState(false);
@@ -81,8 +83,11 @@ export default function DailySessionScreen({ route, navigation }) {
   const [textPdfError, setTextPdfError] = useState(null);
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const contentWidth = windowWidth - 32; // matches styles.scroll's paddingHorizontal: 16 on each side
-  const htmlContent = course?.text_content_html || course?.textContentHtml || '';
-  const textPdfUrl = course?.text_content_pdf_url || course?.textContentPdfUrl || '';
+  const displayTitle = localizedOrNull(course, 'title', isZh) ?? t('common.notTranslated');
+  const videoUrl = localizedOrNull(course, 'video_url', isZh) || '';
+  const htmlContent = localizedOrNull(course, 'text_content_html', isZh) || '';
+  const textPdfUrl = localizedOrNull(course, 'text_content_pdf_url', isZh) || '';
+  const plainTextContent = localizedOrNull(course, 'text_content', isZh) || '';
   const { localUri: textPdfLocalUri, error: textPdfDownloadError, retry: retryTextPdf } = useDownloadedPdf(textPdfUrl);
   const { localUri: pdfViewerLocalUri, error: pdfViewerDownloadError, retry: retryPdfViewer } = useDownloadedPdf(pdfViewerUrl);
 
@@ -90,14 +95,14 @@ export default function DailySessionScreen({ route, navigation }) {
   const activeTabRef = React.useRef('Video');
   const videoTimeRef = React.useRef(0);
   const textTimeRef = React.useRef(0);
-  const videoOpenRef = React.useRef(course?.video_url ? 1 : 0);
+  const videoOpenRef = React.useRef(videoUrl ? 1 : 0);
 
   // Actual playback time (from pressing play to pausing/stopping), separate from
   // videoTimeRef which measures time the Video tab was merely active/visible.
   const videoWatchSecondsRef = React.useRef(0);
   const playStartTimeRef = React.useRef(null);
 
-  const player = useVideoPlayer(course?.video_url || '', p => { p.loop = false; });
+  const player = useVideoPlayer(videoUrl || '', p => { p.loop = false; });
 
   // Banks the current in-progress play segment into videoWatchSecondsRef and clears
   // playStartTimeRef, so it's safe to call this on pause, tab-away, or unmount alike.
@@ -217,7 +222,7 @@ export default function DailySessionScreen({ route, navigation }) {
         scrollEnabled={!(activeTab === 'Text' && textPdfUrl && textPdfLocalUri && !textPdfError && !textPdfDownloadError)}
       >
         <Text style={styles.meta}>Week {course?.week_number ?? course?.weekNumber} · {course?.date ?? ''}</Text>
-        <Text style={styles.courseTitle}>{course?.title}</Text>
+        <Text style={styles.courseTitle}>{displayTitle}</Text>
 
         <View style={styles.tabBar}>
           {tabKeys.map((key, i) => (
@@ -235,7 +240,7 @@ export default function DailySessionScreen({ route, navigation }) {
 
         <View style={styles.mediaArea}>
           {activeTab === 'Video' && (
-            course?.video_url ? (
+            videoUrl ? (
               <VideoView
                 style={styles.videoPlayer}
                 player={player}
@@ -246,7 +251,9 @@ export default function DailySessionScreen({ route, navigation }) {
             ) : (
               <View style={styles.videoPlaceholder}>
                 <Text style={styles.playIcon}>▶</Text>
-                <Text style={styles.videoDuration}>No video available</Text>
+                <Text style={styles.videoDuration}>
+                  {isZh ? t('common.notTranslatedBody') : 'No video available'}
+                </Text>
               </View>
             )
           )}
@@ -288,10 +295,12 @@ export default function DailySessionScreen({ route, navigation }) {
                   tagsStyles={htmlTagStyles}
                   enableExperimentalMarginCollapsing
                 />
+              ) : plainTextContent ? (
+                <Text style={styles.textBody}>{plainTextContent}</Text>
+              ) : isZh ? (
+                <Text style={styles.textBody}>{t('common.notTranslatedBody')}</Text>
               ) : (
-                <Text style={styles.textBody}>
-                  {course?.text_content || course?.textContent || ''}
-                </Text>
+                <Text style={styles.textBody} />
               )}
             </View>
           )}
@@ -320,7 +329,9 @@ export default function DailySessionScreen({ route, navigation }) {
                       {r.resource_type === 'PDF' ? '📄' : r.resource_type === 'Video' ? '🎬' : '🔗'}
                     </Text>
                   </View>
-                  <Text style={styles.resourceTitle}>{r.title}</Text>
+                  <Text style={styles.resourceTitle}>
+                    {localizedOrNull(r, 'title', isZh) ?? t('common.notTranslated')}
+                  </Text>
                   <Text style={styles.resourceType}>{r.resource_type}</Text>
                 </TouchableOpacity>
               ))}
@@ -421,13 +432,6 @@ const styles = StyleSheet.create({
   },
   playIcon: { fontSize: 40, color: Colors.white, marginBottom: 8 }, // decorative icon glyph, not reading text — left unscaled
   videoDuration: { fontSize: scaleFont(13), color: 'rgba(255,255,255,0.7)' },
-  audioPlaceholder: {
-    height: 120,
-    backgroundColor: Colors.cardBackground,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   placeholderLabel: { fontSize: scaleFont(14), color: Colors.textSecondary, marginTop: 8 },
   textContent: { padding: 4 },
   textBody: { fontSize: scaleFont(15), color: Colors.textPrimary, lineHeight: 29 },

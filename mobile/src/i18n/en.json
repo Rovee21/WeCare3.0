@@ -27,7 +27,6 @@
     "progress": "{{completed}} of {{total}} courses",
     "searchPlaceholder": "Search by session title...",
     "video": "Video",
-    "audio": "Audio",
     "text": "Text"
   },
   "session": {
@@ -37,7 +36,6 @@
     "comments": "Comments",
     "tabs": {
       "video": "Video",
-      "audio": "Audio",
       "text": "Text"
     }
   },
@@ -75,5 +73,9 @@
     "journal": "Journal",
     "contact": "Contact",
     "settings": "Settings"
+  },
+  "common": {
+    "notTranslated": "Not yet translated",
+    "notTranslatedBody": "This content hasn't been translated into Mandarin yet."
   }
 }

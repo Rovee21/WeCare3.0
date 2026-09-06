@@ -24,7 +24,6 @@
     "progress": "{{total}}个课程中已完成{{completed}}个",
     "searchPlaceholder": "按课程标题搜索...",
     "video": "视频",
-    "audio": "音频",
     "text": "文字"
   },
   "session": {
@@ -34,7 +33,6 @@
     "comments": "评论",
     "tabs": {
       "video": "视频",
-      "audio": "音频",
       "text": "文字"
     }
   },
@@ -72,5 +70,9 @@
     "journal": "日记",
     "contact": "联系",
     "settings": "设置"
+  },
+  "common": {
+    "notTranslated": "尚未翻译",
+    "notTranslatedBody": "此内容尚未翻译成中文。"
   }
 }

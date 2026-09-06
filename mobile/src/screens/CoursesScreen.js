@@ -6,6 +6,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { getAllSessions } from '../services/sessionService';
 import { Colors } from '../constants/colors';
 import { scaleFont } from '../constants/typography';
+import { isZhLanguage, localizedOrNull } from '../utils/localization';
 
 function groupByWeek(sessions) {
   const map = {};
@@ -55,7 +56,8 @@ function CheckCircle({ isRead, isInProgress, isCurrent, isLocked }) {
 }
 
 export default function CoursesScreen({ navigation }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isZh = isZhLanguage(i18n.language);
   const [sessions, setSessions] = useState([]);
   const [query, setQuery] = useState('');
 
@@ -76,10 +78,13 @@ export default function CoursesScreen({ navigation }) {
 
   const sections = useMemo(() => {
     const filtered = query
-      ? sessions.filter(s => s.title.toLowerCase().includes(query.toLowerCase()))
+      ? sessions.filter(s => {
+          const displayTitle = localizedOrNull(s, 'title', isZh) ?? t('common.notTranslated');
+          return displayTitle.toLowerCase().includes(query.toLowerCase());
+        })
       : sessions;
     return groupByWeek(filtered);
-  }, [sessions, query]);
+  }, [sessions, query, isZh, t]);
 
   const renderItem = useCallback(({ item }) => {
     const isLocked = !!item.locked;
@@ -100,12 +105,14 @@ export default function CoursesScreen({ navigation }) {
       >
         <CheckCircle isRead={isRead} isInProgress={isInProgress} isCurrent={isCurrent} isLocked={isLocked} />
         <View style={styles.courseInfo}>
-          <Text style={[styles.courseTitle, isLocked && styles.courseTitleLocked]}>{item.title}</Text>
+          <Text style={[styles.courseTitle, isLocked && styles.courseTitleLocked]}>
+            {localizedOrNull(item, 'title', isZh) ?? t('common.notTranslated')}
+          </Text>
           {meta ? <Text style={styles.courseMeta}>{meta}</Text> : null}
         </View>
       </TouchableOpacity>
     );
-  }, [firstUnreadId, navigation]);
+  }, [firstUnreadId, navigation, isZh, t]);
 
   return (
     <SafeAreaView style={styles.container}>

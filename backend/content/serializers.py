@@ -22,7 +22,7 @@ class SessionSerializer(serializers.ModelSerializer):
         fields = [
             "id", "title", "title_zh", "week_number", "day_number",
             "week_label", "media_types",
-            "video_url", "audio_url", "text_content", "text_content_zh",
+            "video_url", "video_url_zh", "text_content", "text_content_zh",
             "text_content_html", "text_content_html_zh",
             "text_content_pdf_url", "text_content_pdf_url_zh",
             "resources", "is_read", "status", "locked",
@@ -73,7 +73,7 @@ class EngagementLogSerializer(serializers.ModelSerializer):
             "session_id",
             "course_title", "week_number",
             "video_open_count", "video_last_time",
-            "video_time_seconds", "video_watch_seconds", "audio_time_seconds", "text_time_seconds",
+            "video_time_seconds", "video_watch_seconds", "text_time_seconds",
             "read_count", "read_minutes",
             "interactive_feature_count", "interactive_feature_comment",
             "infographic_open_count", "tracking_download_count",

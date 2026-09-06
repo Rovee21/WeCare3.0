@@ -9,9 +9,8 @@ class Session(models.Model):
     day_number = models.PositiveSmallIntegerField()
 
     video_url = models.URLField(blank=True)
-    audio_url = models.URLField(blank=True)
+    video_url_zh = models.URLField(blank=True, help_text="Chinese counterpart to video_url.")
     video_file = models.FileField(upload_to='session_videos/', blank=True, null=True)
-    audio_file = models.FileField(upload_to='session_audio/', blank=True, null=True)
     text_content = models.TextField(blank=True)
     text_content_zh = models.TextField(blank=True)
     text_content_html = models.TextField(
@@ -70,8 +69,6 @@ class Session(models.Model):
         types = []
         if self.video_url:
             types.append("Video")
-        if self.audio_url:
-            types.append("Audio")
         if self.text_content or self.text_content_html:
             types.append("Text")
         return types
@@ -128,7 +125,6 @@ class EngagementLog(models.Model):
     video_last_time = models.PositiveIntegerField(default=0)       # seconds watched
     video_time_seconds = models.PositiveIntegerField(default=0)
     video_watch_seconds = models.PositiveIntegerField(default=0, help_text="Actual video playback time (from pressing play to pausing/stopping), as opposed to video_time_seconds which measures time the Video tab was simply active/visible.")
-    audio_time_seconds = models.PositiveIntegerField(default=0)
     text_time_seconds = models.PositiveIntegerField(default=0)
     read_count = models.PositiveIntegerField(default=0)
     read_minutes = models.FloatField(default=0.0)
@@ -142,7 +138,7 @@ class EngagementLog(models.Model):
     logged_at = models.DateTimeField(auto_now_add=True)
     @property
     def total_time_seconds(self):
-        return self.video_time_seconds + self.audio_time_seconds + self.text_time_seconds
+        return self.video_time_seconds + self.text_time_seconds
 
     class Meta:
         ordering = ["-logged_at"]

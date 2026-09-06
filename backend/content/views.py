@@ -204,7 +204,6 @@ def log_engagement(request):
 
     video_time = int(request.data.get("video_time_seconds", 0))
     video_watch = int(request.data.get("video_watch_seconds", 0))
-    audio_time = int(request.data.get("audio_time_seconds", 0))
     text_time  = int(request.data.get("text_time_seconds", 0))
     video_opens = int(request.data.get("video_open_count", 0))
     emoji_taps  = int(request.data.get("interactive_feature_count", 0))
@@ -215,9 +214,6 @@ def log_engagement(request):
     if video_watch:
         log.video_watch_seconds = F("video_watch_seconds") + video_watch
         update_fields.append("video_watch_seconds")
-    if audio_time:
-        log.audio_time_seconds = F("audio_time_seconds") + audio_time
-        update_fields.append("audio_time_seconds")
     if text_time:
         log.text_time_seconds = F("text_time_seconds") + text_time
         update_fields.append("text_time_seconds")
@@ -237,10 +233,18 @@ def log_engagement(request):
     # completion. This is evaluated against the log's cumulative totals (accumulated via
     # F() above across every visit), not just this one call's deltas, so time split
     # across multiple app opens/closes is correctly summed instead of resetting each
-    # time the participant reopens the session.
+    # time the participant reopens the session. "Has content" is checked against the
+    # participant's own language — e.g. a Mandarin-selected participant is only blocked
+    # by the video threshold if a Chinese video was actually uploaded for this session;
+    # if not, they see a placeholder instead of the English video and shouldn't be stuck
+    # unable to ever complete the session.
     if session:
-        has_video = bool(session.video_url)
-        has_text = bool(session.text_content or session.text_content_html)
+        is_zh = participant.language == "zh"
+        effective_video_url = (session.video_url_zh if is_zh else session.video_url)
+        effective_text_html = (session.text_content_html_zh if is_zh else session.text_content_html)
+        effective_text_plain = (session.text_content_zh if is_zh else session.text_content)
+        has_video = bool(effective_video_url)
+        has_text = bool(effective_text_plain or effective_text_html)
         video_threshold_met = not has_video or log.video_watch_seconds >= 60
         text_threshold_met = not has_text or log.text_time_seconds >= 60
         if video_threshold_met and text_threshold_met:

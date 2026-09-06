@@ -51,6 +51,13 @@ class SessionAdminForm(forms.ModelForm):
         label="Upload MP4 video",
         help_text="Uploads directly to S3 and fills in Video URL below.",
     )
+    video_upload_zh = forms.FileField(
+        required=False,
+        label="Upload MP4 video (Chinese)",
+        help_text="Same as above, populates the Chinese Video URL field. If left blank, "
+                   "Mandarin-selected participants will see a 'not yet translated' message "
+                   "in place of a video, instead of the English one.",
+    )
     docx_upload = forms.FileField(
         required=False,
         label="Upload Word document (English)",
@@ -81,11 +88,17 @@ class SessionAdminForm(forms.ModelForm):
         model = Session
         fields = "__all__"
 
-    def clean_video_upload(self):
-        f = self.cleaned_data.get("video_upload")
+    def _clean_video(self, field_name):
+        f = self.cleaned_data.get(field_name)
         if f and not (f.content_type == "video/mp4" or f.name.lower().endswith(".mp4")):
             raise forms.ValidationError("Please upload an MP4 video file.")
         return f
+
+    def clean_video_upload(self):
+        return self._clean_video("video_upload")
+
+    def clean_video_upload_zh(self):
+        return self._clean_video("video_upload_zh")
 
     def _clean_docx(self, field_name):
         f = self.cleaned_data.get(field_name)
@@ -125,6 +138,15 @@ class SessionAdminForm(forms.ModelForm):
                 )
             except Exception as e:
                 raise forms.ValidationError(f"Video upload failed: {e}")
+
+        upload_zh = cleaned_data.get("video_upload_zh")
+        if upload_zh and week is not None and day is not None:
+            try:
+                cleaned_data["video_url_zh"] = upload_video_to_s3(
+                    upload_zh, SimpleNamespace(week_number=week, day_number=day)
+                )
+            except Exception as e:
+                raise forms.ValidationError(f"Video upload (Chinese) failed: {e}")
 
         docx = cleaned_data.get("docx_upload")
         if docx and week is not None and day is not None:
@@ -191,8 +213,15 @@ class SessionAdmin(admin.ModelAdmin):
             "description": "Leave blank to show this session to all participants in that dimension.",
         }),
         ("Media URLs", {
-            "fields": ("video_upload", "video_url"),
-            "description": "Upload an MP4 directly, or paste an S3/external video URL.",
+            "fields": (
+                "video_upload", "video_url",
+                "video_upload_zh", "video_url_zh",
+            ),
+            "classes": ("wide",),
+            "description": "Upload an MP4 directly, or paste an S3/external video URL. "
+                            "Upload a separate Chinese video below — if left blank, "
+                            "Mandarin-selected participants see a placeholder instead of "
+                            "the English video.",
         }),
         ("Text Content", {
             "fields": (

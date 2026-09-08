@@ -37,9 +37,7 @@ module.exports = {
       "expo-video",
       "@config-plugins/react-native-blob-util",
       "@config-plugins/react-native-pdf",
-      // [
-      //   "expo-notifications"
-      // ]
+      "expo-notifications"
     ],
     extra: {
       eas: {

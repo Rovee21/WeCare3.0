@@ -1,29 +1,153 @@
+from pathlib import Path
 from types import SimpleNamespace
 from django import forms
 from django.contrib import admin
+from django.template.response import TemplateResponse
 from django.utils.html import format_html
 from .models import (
     Session, AdditionalResource, EngagementLog, NotificationLog, ParticipantSession,
-    DailyNotificationSettings,
+    DailyNotificationSettings, MediaAsset,
 )
-from .services import upload_video_to_s3, upload_pdf_to_s3, upload_text_pdf_to_s3, convert_docx_to_html
+from .services import (
+    convert_docx_to_html, upload_image_to_s3, upload_media_asset_to_s3, build_media_asset_fields,
+)
+
+
+_MEDIA_ASSET_VALIDATION = {
+    MediaAsset.TYPE_VIDEO: (("video/mp4",), (".mp4",), "Please upload an MP4 video file."),
+    MediaAsset.TYPE_PDF: (("application/pdf",), (".pdf",), "Please upload a PDF file."),
+    MediaAsset.TYPE_AUDIO: (("audio/mpeg",), (".mp3",), "Please upload an MP3 audio file."),
+    MediaAsset.TYPE_DOCUMENT: (
+        ("application/vnd.openxmlformats-officedocument.wordprocessingml.document",),
+        (".docx",), "Please upload a .docx Word document.",
+    ),
+}
+
+# Bulk-upload extension -> asset_type inference (see MediaAssetAdmin.bulk_upload_view).
+_EXT_TO_ASSET_TYPE = {
+    ".mp4": MediaAsset.TYPE_VIDEO,
+    ".pdf": MediaAsset.TYPE_PDF,
+    ".mp3": MediaAsset.TYPE_AUDIO,
+    ".docx": MediaAsset.TYPE_DOCUMENT,
+}
+
+
+class MediaAssetAdminForm(forms.ModelForm):
+    file_upload = forms.FileField(
+        required=False,
+        label="Upload file",
+        help_text="Uploads directly to S3 and fills in File URL below. Pick the matching "
+                   "Type above before uploading. Required when creating a new asset.",
+    )
+
+    class Meta:
+        model = MediaAsset
+        fields = ["title", "asset_type", "file_upload", "file_url", "html_content"]
+
+    def clean(self):
+        cleaned_data = super().clean()
+        f = cleaned_data.get("file_upload")
+        asset_type = cleaned_data.get("asset_type")
+        if not self.instance.pk and not f:
+            raise forms.ValidationError("Please upload a file.")
+        if f and asset_type:
+            content_types, exts, error = _MEDIA_ASSET_VALIDATION[asset_type]
+            if not (f.content_type in content_types or f.name.lower().endswith(exts)):
+                raise forms.ValidationError(error)
+            try:
+                # file_url/html_content/original_filename are marked readonly on
+                # MediaAssetAdmin once the object has a pk (and file_url/original_filename
+                # are excluded from the form entirely on add too) — Django's admin
+                # excludes readonly/unlisted fields from the ModelForm it builds, so
+                # cleaned_data assignments for them are silently dropped by
+                # construct_instance(). Setting them directly on self.instance instead
+                # survives regardless, since construct_instance() only touches fields
+                # that are actually part of the form.
+                for key, value in build_media_asset_fields(f, asset_type).items():
+                    setattr(self.instance, key, value)
+            except Exception as e:
+                raise forms.ValidationError(f"Upload failed: {e}")
+        return cleaned_data
+
+
+@admin.register(MediaAsset)
+class MediaAssetAdmin(admin.ModelAdmin):
+    form = MediaAssetAdminForm
+    list_display = ["title", "asset_type", "uploaded_at"]
+    list_filter = ["asset_type"]
+    search_fields = ["title"]
+
+    def get_fields(self, request, obj=None):
+        if obj is not None:
+            return ["title", "asset_type", "file_url"]
+        return ["title", "asset_type", "file_upload", "file_url"]
+
+    def get_readonly_fields(self, request, obj=None):
+        # An asset's file/type is set once at upload time — to replace it, upload a
+        # new asset rather than mutating one that other sessions/resources may
+        # already be pointing at. Title stays editable so a typo can still be fixed.
+        if obj is not None:
+            return ["asset_type", "file_url"]
+        return ["file_url"]
+
+    def get_urls(self):
+        from django.urls import path
+        urls = super().get_urls()
+        custom = [
+            path(
+                "bulk-upload/",
+                self.admin_site.admin_view(self.bulk_upload_view),
+                name="content_mediaasset_bulk_upload",
+            ),
+        ]
+        return custom + urls
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context["bulk_upload_url"] = "/admin/content/mediaasset/bulk-upload/"
+        return super().changelist_view(request, extra_context)
+
+    def bulk_upload_view(self, request):
+        results = []
+        if request.method == "POST":
+            for f in request.FILES.getlist("files"):
+                filename = f.name
+                ext = Path(filename).suffix.lower()
+                asset_type = _EXT_TO_ASSET_TYPE.get(ext)
+                if not asset_type:
+                    results.append({"filename": filename, "success": False, "error": f"Unsupported file type ({ext or 'no extension'})"})
+                    continue
+                try:
+                    fields = build_media_asset_fields(f, asset_type)
+                    MediaAsset.objects.create(title=Path(filename).stem, asset_type=asset_type, **fields)
+                    results.append({"filename": filename, "success": True, "asset_type": asset_type})
+                except Exception as e:
+                    results.append({"filename": filename, "success": False, "error": str(e)})
+
+        context = {
+            **self.admin_site.each_context(request),
+            "title": "Bulk Upload Media Assets",
+            "results": results,
+        }
+        return TemplateResponse(request, "admin/content/mediaasset/bulk_upload.html", context)
 
 
 class AdditionalResourceInlineForm(forms.ModelForm):
     url = forms.URLField(
         required=False,
         help_text="Paste a link (Article/Video/website), or leave blank and use the "
-                   "PDF upload field instead.",
+                   "PDF upload/library fields instead.",
     )
     pdf_upload = forms.FileField(
         required=False,
         label="Upload PDF",
-        help_text="Uploads directly to S3 and fills in URL above.",
+        help_text="Uploads directly to S3 and adds it to the Media Library, or pick an "
+                   "already-uploaded one below instead.",
     )
 
     class Meta:
         model = AdditionalResource
-        fields = ["title", "title_zh", "resource_type", "pdf_upload", "url"]
+        fields = ["title", "title_zh", "resource_type", "media_asset", "pdf_upload", "url"]
 
     def clean_pdf_upload(self):
         f = self.cleaned_data.get("pdf_upload")
@@ -33,8 +157,8 @@ class AdditionalResourceInlineForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        if not cleaned_data.get("url") and not cleaned_data.get("pdf_upload"):
-            raise forms.ValidationError("Provide either a URL or a PDF upload.")
+        if not cleaned_data.get("url") and not cleaned_data.get("pdf_upload") and not cleaned_data.get("media_asset"):
+            raise forms.ValidationError("Provide a URL, a PDF upload, or pick a Media Library asset.")
         return cleaned_data
 
 
@@ -42,7 +166,8 @@ class AdditionalResourceInline(admin.TabularInline):
     model = AdditionalResource
     form = AdditionalResourceInlineForm
     extra = 1
-    fields = ["title", "title_zh", "resource_type", "pdf_upload", "url"]
+    fields = ["title", "title_zh", "resource_type", "media_asset", "pdf_upload", "url"]
+    autocomplete_fields = ["media_asset"]
 
 
 class SessionAdminForm(forms.ModelForm):
@@ -131,28 +256,51 @@ class SessionAdminForm(forms.ModelForm):
         day = cleaned_data.get("day_number")
 
         upload = cleaned_data.get("video_upload")
-        if upload and week is not None and day is not None:
+        if upload:
             try:
-                cleaned_data["video_url"] = upload_video_to_s3(
-                    upload, SimpleNamespace(week_number=week, day_number=day)
+                cleaned_data["video_asset"] = MediaAsset.objects.create(
+                    title=f"{cleaned_data.get('title') or 'Untitled'} — video",
+                    asset_type=MediaAsset.TYPE_VIDEO,
+                    file_url=upload_media_asset_to_s3(upload, MediaAsset.TYPE_VIDEO),
+                    original_filename=upload.name,
                 )
             except Exception as e:
                 raise forms.ValidationError(f"Video upload failed: {e}")
 
         upload_zh = cleaned_data.get("video_upload_zh")
-        if upload_zh and week is not None and day is not None:
+        if upload_zh:
             try:
-                cleaned_data["video_url_zh"] = upload_video_to_s3(
-                    upload_zh, SimpleNamespace(week_number=week, day_number=day)
+                cleaned_data["video_asset_zh"] = MediaAsset.objects.create(
+                    title=f"{cleaned_data.get('title') or 'Untitled'} — video (Chinese)",
+                    asset_type=MediaAsset.TYPE_VIDEO,
+                    file_url=upload_media_asset_to_s3(upload_zh, MediaAsset.TYPE_VIDEO),
+                    original_filename=upload_zh.name,
                 )
             except Exception as e:
                 raise forms.ValidationError(f"Video upload (Chinese) failed: {e}")
+
+        # Picking a Word Document asset from the library copies its HTML in once, at
+        # the moment the pick actually changes — it does not stay dynamically linked,
+        # so the field remains freely hand-editable afterward (same as after a fresh
+        # docx upload). Comparing against self.instance's still-unmutated saved value
+        # (construct_instance() hasn't run yet at this point in clean()) is essential:
+        # without it, resaving a session that already has a docx_asset linked would
+        # silently overwrite any hand-edit back to the library's original HTML on every
+        # subsequent save, since the same asset id gets resubmitted every time the form
+        # re-renders. A fresh upload in the same submission (below) always overrides.
+        docx_asset = cleaned_data.get("docx_asset")
+        if docx_asset and docx_asset.pk != self.instance.docx_asset_id:
+            cleaned_data["text_content_html"] = docx_asset.html_content
+
+        docx_asset_zh = cleaned_data.get("docx_asset_zh")
+        if docx_asset_zh and docx_asset_zh.pk != self.instance.docx_asset_zh_id:
+            cleaned_data["text_content_html_zh"] = docx_asset_zh.html_content
 
         docx = cleaned_data.get("docx_upload")
         if docx and week is not None and day is not None:
             try:
                 cleaned_data["text_content_html"] = convert_docx_to_html(
-                    docx, SimpleNamespace(week_number=week, day_number=day)
+                    docx, lambda data, ct: upload_image_to_s3(data, ct, SimpleNamespace(week_number=week, day_number=day))
                 )
             except Exception as e:
                 raise forms.ValidationError(f"Word document (English) conversion failed: {e}")
@@ -161,25 +309,31 @@ class SessionAdminForm(forms.ModelForm):
         if docx_zh and week is not None and day is not None:
             try:
                 cleaned_data["text_content_html_zh"] = convert_docx_to_html(
-                    docx_zh, SimpleNamespace(week_number=week, day_number=day)
+                    docx_zh, lambda data, ct: upload_image_to_s3(data, ct, SimpleNamespace(week_number=week, day_number=day))
                 )
             except Exception as e:
                 raise forms.ValidationError(f"Word document (Chinese) conversion failed: {e}")
 
         text_pdf = cleaned_data.get("text_pdf_upload")
-        if text_pdf and week is not None and day is not None:
+        if text_pdf:
             try:
-                cleaned_data["text_content_pdf_url"] = upload_text_pdf_to_s3(
-                    text_pdf, SimpleNamespace(week_number=week, day_number=day)
+                cleaned_data["text_pdf_asset"] = MediaAsset.objects.create(
+                    title=f"{cleaned_data.get('title') or 'Untitled'} — text PDF",
+                    asset_type=MediaAsset.TYPE_PDF,
+                    file_url=upload_media_asset_to_s3(text_pdf, MediaAsset.TYPE_PDF),
+                    original_filename=text_pdf.name,
                 )
             except Exception as e:
                 raise forms.ValidationError(f"Text PDF upload failed: {e}")
 
         text_pdf_zh = cleaned_data.get("text_pdf_upload_zh")
-        if text_pdf_zh and week is not None and day is not None:
+        if text_pdf_zh:
             try:
-                cleaned_data["text_content_pdf_url_zh"] = upload_text_pdf_to_s3(
-                    text_pdf_zh, SimpleNamespace(week_number=week, day_number=day)
+                cleaned_data["text_pdf_asset_zh"] = MediaAsset.objects.create(
+                    title=f"{cleaned_data.get('title') or 'Untitled'} — text PDF (Chinese)",
+                    asset_type=MediaAsset.TYPE_PDF,
+                    file_url=upload_media_asset_to_s3(text_pdf_zh, MediaAsset.TYPE_PDF),
+                    original_filename=text_pdf_zh.name,
                 )
             except Exception as e:
                 raise forms.ValidationError(f"Text PDF (Chinese) upload failed: {e}")
@@ -203,6 +357,10 @@ class SessionAdmin(admin.ModelAdmin):
     search_fields = ["title", "title_zh"]
     inlines = [AdditionalResourceInline]
     list_per_page = 50
+    autocomplete_fields = [
+        "video_asset", "video_asset_zh", "text_pdf_asset", "text_pdf_asset_zh",
+        "docx_asset", "docx_asset_zh",
+    ]
 
     fieldsets = (
         ("Identity", {
@@ -214,42 +372,50 @@ class SessionAdmin(admin.ModelAdmin):
         }),
         ("Media URLs", {
             "fields": (
-                "video_upload", "video_url",
-                "video_upload_zh", "video_url_zh",
+                "video_upload", "video_asset", "video_url",
+                "video_upload_zh", "video_asset_zh", "video_url_zh",
             ),
             "classes": ("wide",),
-            "description": "Upload an MP4 directly, or paste an S3/external video URL. "
-                            "Upload a separate Chinese video below — if left blank, "
-                            "Mandarin-selected participants see a placeholder instead of "
-                            "the English video.",
+            "description": "Upload a new MP4, or pick an already-uploaded one from the Media "
+                            "Library below — either way it takes priority over the legacy Video "
+                            "URL field, which stays as a fallback for old sessions and pasted "
+                            "external links. Upload/pick a separate Chinese video below — if "
+                            "left blank, Mandarin-selected participants see a placeholder "
+                            "instead of the English video.",
         }),
         ("Text Content", {
             "fields": (
-                "docx_upload", "text_content_html",
-                "docx_upload_zh", "text_content_html_zh",
-                "text_pdf_upload", "text_content_pdf_url",
-                "text_pdf_upload_zh", "text_content_pdf_url_zh",
+                "docx_upload", "docx_asset", "text_content_html",
+                "docx_upload_zh", "docx_asset_zh", "text_content_html_zh",
+                "text_pdf_upload", "text_pdf_asset", "text_content_pdf_url",
+                "text_pdf_upload_zh", "text_pdf_asset_zh", "text_content_pdf_url_zh",
                 "text_content", "text_content_zh",
             ),
             "classes": ("wide",),
-            "description": "Upload a .docx to auto-fill the HTML field directly below it — "
-                            "embedded images are extracted and hosted on S3 automatically, in "
-                            "reading order. You can hand-edit the resulting HTML afterward, same "
-                            "as editing Video URL after an MP4 upload. Alternatively, upload a "
-                            "PDF directly below — when a Text PDF URL is set, the app shows it in "
-                            "an in-app viewer for the Text tab instead of the HTML above. The "
-                            "plain-text fields below remain a fallback used by older sessions/app "
-                            "versions with no rich content.",
+            "description": "Upload a .docx (or pick one from the Media Library) to auto-fill "
+                            "the HTML field directly below it — embedded images are extracted "
+                            "and hosted on S3 automatically, in reading order. Either way, you "
+                            "can hand-edit the resulting HTML afterward — picking an asset only "
+                            "copies its HTML in once, it doesn't stay linked. Alternatively, "
+                            "upload a new PDF or pick one from the Media Library below — when a "
+                            "Text PDF is set (via either path), the app shows it in an in-app "
+                            "viewer for the Text tab instead of the HTML above. The plain-text "
+                            "fields below remain a fallback used by older sessions/app versions "
+                            "with no rich content.",
         }),
     )
 
     def save_formset(self, request, form, formset, change):
         if formset.model is AdditionalResource:
-            session = form.instance  # already saved: week_number/day_number available
             for f in formset.forms:
                 pdf = f.cleaned_data.get("pdf_upload") if f.cleaned_data else None
                 if pdf:
-                    f.instance.url = upload_pdf_to_s3(pdf, session)
+                    f.instance.media_asset = MediaAsset.objects.create(
+                        title=f.cleaned_data.get("title") or "Untitled",
+                        asset_type=MediaAsset.TYPE_PDF,
+                        file_url=upload_media_asset_to_s3(pdf, MediaAsset.TYPE_PDF),
+                        original_filename=pdf.name,
+                    )
         formset.save()
 
     def target_group1_display(self, obj):

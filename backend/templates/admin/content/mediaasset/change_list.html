@@ -1,0 +1,17 @@
+{% extends "admin/change_list.html" %}
+{% block object-tools %}
+  {% include "admin/_back_button.html" with back_url="/admin/" back_label="Back to Admin Home" %}
+  {{ block.super }}
+{% endblock %}
+{% block object-tools-items %}
+  {{ block.super }}
+  <li>
+    <a href="{{ bulk_upload_url }}" class="historylink" style="background:#1e8449;color:#fff;padding:6px 14px;border-radius:4px;text-decoration:none;font-size:13px;">
+      ⬆ Bulk Upload
+    </a>
+  </li>
+{% endblock %}
+{% block pagination %}
+  {{ block.super }}
+  {% include "admin/_back_button.html" with back_url="/admin/" back_label="Back to Admin Home" %}
+{% endblock %}

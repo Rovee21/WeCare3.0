@@ -2,6 +2,36 @@ from django.db import models
 from django.contrib.auth.models import User
 
 
+class MediaAsset(models.Model):
+    """A reusable, centrally-uploaded file (video/PDF/audio) that Session and
+    AdditionalResource fields can point at via FK instead of each re-uploading their
+    own copy. See MediaAssetAdmin for the upload flow."""
+    TYPE_VIDEO = "Video"
+    TYPE_PDF = "PDF"
+    TYPE_AUDIO = "Audio"
+    TYPE_DOCUMENT = "Document"
+    TYPE_CHOICES = [
+        (TYPE_VIDEO, "Video"), (TYPE_PDF, "PDF"), (TYPE_AUDIO, "Audio"), (TYPE_DOCUMENT, "Document"),
+    ]
+
+    title = models.CharField(max_length=200)
+    asset_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    file_url = models.URLField(blank=True, help_text="Set automatically from the upload above.")
+    html_content = models.TextField(
+        blank=True,
+        help_text="Sanitized HTML, populated only for Document-type assets — converted "
+                   "from the uploaded .docx once, at upload time.",
+    )
+    original_filename = models.CharField(max_length=255, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-uploaded_at"]
+
+    def __str__(self):
+        return f"{self.title} ({self.asset_type})"
+
+
 class Session(models.Model):
     title = models.CharField(max_length=200)
     title_zh = models.CharField(max_length=200, blank=True)
@@ -10,18 +40,42 @@ class Session(models.Model):
 
     video_url = models.URLField(blank=True)
     video_url_zh = models.URLField(blank=True, help_text="Chinese counterpart to video_url.")
+    video_asset = models.ForeignKey(
+        MediaAsset, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+        limit_choices_to={"asset_type": MediaAsset.TYPE_VIDEO},
+        help_text="Pick an already-uploaded video from the library instead of re-uploading. "
+                   "Takes priority over Video URL above when set.",
+    )
+    video_asset_zh = models.ForeignKey(
+        MediaAsset, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+        limit_choices_to={"asset_type": MediaAsset.TYPE_VIDEO},
+        help_text="Chinese counterpart to Video Asset.",
+    )
     video_file = models.FileField(upload_to='session_videos/', blank=True, null=True)
     text_content = models.TextField(blank=True)
     text_content_zh = models.TextField(blank=True)
     text_content_html = models.TextField(
         blank=True,
         help_text="Rich HTML (headings, formatting, inline images hosted on S3) generated "
-                   "from an uploaded .docx via the admin's 'Upload Word document' field. "
-                   "Can be hand-edited afterward. Falls back to text_content on mobile when empty."
+                   "from an uploaded .docx (or picked Media Library document) via the "
+                   "admin's 'Upload Word document' field. Can be hand-edited afterward. "
+                   "Falls back to text_content on mobile when empty."
     )
     text_content_html_zh = models.TextField(
         blank=True,
         help_text="Chinese counterpart to text_content_html."
+    )
+    docx_asset = models.ForeignKey(
+        MediaAsset, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+        limit_choices_to={"asset_type": MediaAsset.TYPE_DOCUMENT},
+        help_text="Pick an already-uploaded Word document from the library — copies its "
+                   "HTML into Text Content HTML below once, at save time (still freely "
+                   "hand-editable afterward, same as a fresh .docx upload).",
+    )
+    docx_asset_zh = models.ForeignKey(
+        MediaAsset, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+        limit_choices_to={"asset_type": MediaAsset.TYPE_DOCUMENT},
+        help_text="Chinese counterpart to Word Document Asset.",
     )
     text_content_pdf_url = models.URLField(
         blank=True,
@@ -31,6 +85,17 @@ class Session(models.Model):
     text_content_pdf_url_zh = models.URLField(
         blank=True,
         help_text="Chinese counterpart to text_content_pdf_url."
+    )
+    text_pdf_asset = models.ForeignKey(
+        MediaAsset, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+        limit_choices_to={"asset_type": MediaAsset.TYPE_PDF},
+        help_text="Pick an already-uploaded PDF from the library instead of re-uploading. "
+                   "Takes priority over Text PDF URL above when set.",
+    )
+    text_pdf_asset_zh = models.ForeignKey(
+        MediaAsset, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+        limit_choices_to={"asset_type": MediaAsset.TYPE_PDF},
+        help_text="Chinese counterpart to Text PDF Asset.",
     )
 
     # Cohort targeting — blank means "show to all" for that dimension
@@ -67,11 +132,27 @@ class Session(models.Model):
     @property
     def media_types(self) -> list[str]:
         types = []
-        if self.video_url:
+        if self.video_url or self.video_asset_id:
             types.append("Video")
         if self.text_content or self.text_content_html:
             types.append("Text")
         return types
+
+    @property
+    def effective_video_url(self) -> str:
+        return self.video_asset.file_url if self.video_asset_id else self.video_url
+
+    @property
+    def effective_video_url_zh(self) -> str:
+        return self.video_asset_zh.file_url if self.video_asset_zh_id else self.video_url_zh
+
+    @property
+    def effective_text_content_pdf_url(self) -> str:
+        return self.text_pdf_asset.file_url if self.text_pdf_asset_id else self.text_content_pdf_url
+
+    @property
+    def effective_text_content_pdf_url_zh(self) -> str:
+        return self.text_pdf_asset_zh.file_url if self.text_pdf_asset_zh_id else self.text_content_pdf_url_zh
 
 
 class AdditionalResource(models.Model):
@@ -85,9 +166,18 @@ class AdditionalResource(models.Model):
     title_zh = models.CharField(max_length=200, blank=True)
     resource_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
     url = models.URLField()
+    media_asset = models.ForeignKey(
+        MediaAsset, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+        help_text="Pick an already-uploaded file from the library instead of re-uploading. "
+                   "Takes priority over URL above when set.",
+    )
 
     def __str__(self):
         return f"{self.title} ({self.resource_type})"
+
+    @property
+    def effective_url(self) -> str:
+        return self.media_asset.file_url if self.media_asset_id else self.url
 
 
 class ParticipantSession(models.Model):

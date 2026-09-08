@@ -4,6 +4,10 @@ from .models import Session, AdditionalResource, EngagementLog
 
 
 class AdditionalResourceSerializer(serializers.ModelSerializer):
+    # Resolves to media_asset's file_url when set (Media Library pick/upload), falling
+    # back to the plain url field for legacy/external-link resources.
+    url = serializers.URLField(source="effective_url", read_only=True)
+
     class Meta:
         model = AdditionalResource
         fields = ["id", "title", "title_zh", "resource_type", "url"]
@@ -16,6 +20,12 @@ class SessionSerializer(serializers.ModelSerializer):
     is_read = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
     locked = serializers.SerializerMethodField()
+    # These resolve to the picked/uploaded Media Library asset's file_url when set,
+    # falling back to the plain url fields for legacy sessions/pasted external links.
+    video_url = serializers.URLField(source="effective_video_url", read_only=True)
+    video_url_zh = serializers.URLField(source="effective_video_url_zh", read_only=True)
+    text_content_pdf_url = serializers.URLField(source="effective_text_content_pdf_url", read_only=True)
+    text_content_pdf_url_zh = serializers.URLField(source="effective_text_content_pdf_url_zh", read_only=True)
 
     class Meta:
         model = Session

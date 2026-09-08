@@ -280,7 +280,7 @@ components:
         url:
           type: string
           format: uri
-          maxLength: 200
+          readOnly: true
       required:
       - id
       - resource_type
@@ -575,12 +575,11 @@ components:
         video_url:
           type: string
           format: uri
-          maxLength: 200
+          readOnly: true
         video_url_zh:
           type: string
           format: uri
-          description: Chinese counterpart to video_url.
-          maxLength: 200
+          readOnly: true
         text_content:
           type: string
         text_content_zh:
@@ -597,14 +596,11 @@ components:
         text_content_pdf_url:
           type: string
           format: uri
-          description: If set (via the admin's 'Upload PDF for Text section' field),
-            the app shows an in-app PDF viewer for the Text tab instead of text_content_html.
-          maxLength: 200
+          readOnly: true
         text_content_pdf_url_zh:
           type: string
           format: uri
-          description: Chinese counterpart to text_content_pdf_url.
-          maxLength: 200
+          readOnly: true
         resources:
           type: array
           items:
@@ -628,7 +624,11 @@ components:
       - media_types
       - resources
       - status
+      - text_content_pdf_url
+      - text_content_pdf_url_zh
       - title
+      - video_url
+      - video_url_zh
       - week_label
       - week_number
     StatusEnum:

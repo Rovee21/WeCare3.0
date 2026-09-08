@@ -1,0 +1,106 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<style>
+  .upload-box { max-width: 700px; margin: 40px auto; }
+  .upload-card { background: #1a2a3a; border-radius: 12px; padding: 32px; }
+  .upload-card h2 { color: #7fb3d3; font-size: 20px; margin: 0 0 8px 0; }
+  .upload-card p { color: #aaa; font-size: 14px; margin: 0 0 24px 0; }
+  .dropzone {
+    border: 2px dashed #2E86C1; border-radius: 8px; padding: 40px 20px;
+    text-align: center; color: #aaa; font-size: 14px; cursor: pointer;
+    background: #243447; margin-bottom: 16px; transition: background 0.15s;
+  }
+  .dropzone.dragover { background: #2b3f56; color: #fff; }
+  .file-list { list-style: none; padding: 0; margin: 0 0 16px 0; color: #ddd; font-size: 13px; }
+  .file-list li { padding: 4px 0; }
+  .submit-btn { background: #1F6B9A; color: #fff; border: none; padding: 12px 28px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; width: 100%; }
+  .submit-btn:hover { background: #2E86C1; }
+  .hint { background: #243447; border-radius: 8px; padding: 16px; margin-top: 20px; }
+  .hint h4 { color: #7fb3d3; font-size: 13px; margin: 0 0 8px 0; text-transform: uppercase; }
+  .hint ul { color: #aaa; font-size: 13px; margin: 0; padding-left: 20px; line-height: 2; }
+  .back-btn { display: inline-block; margin-bottom: 20px; padding: 8px 16px; background: #1F6B9A; color: #fff; border-radius: 6px; text-decoration: none; font-size: 13px; }
+  .results { margin-top: 24px; }
+  .results h3 { color: #7fb3d3; font-size: 15px; margin: 0 0 12px 0; }
+  .results ul { list-style: none; padding: 0; margin: 0; font-size: 13px; }
+  .results li { padding: 6px 0; border-bottom: 1px solid #243447; color: #ddd; }
+  .results .ok { color: #6fcf6f; }
+  .results .fail { color: #e57373; }
+</style>
+
+<div class="upload-box">
+  <a class="back-btn" href="/admin/content/mediaasset/">← Back to Media Library</a>
+  <div class="upload-card">
+    <h2>Bulk Upload Media Assets</h2>
+    <p>Drag and drop as many files as you like — each becomes one Media Library asset.
+       The title is taken from the filename, and the type (Video/PDF/Audio/Document) is
+       detected from its extension automatically, so there's nothing to fill in per file.</p>
+    <form method="post" enctype="multipart/form-data" id="bulk-upload-form">
+      {% csrf_token %}
+      <div class="dropzone" id="dropzone">
+        Drop files here, or click to choose files
+      </div>
+      <input type="file" name="files" id="file-input" multiple style="display:none;">
+      <ul class="file-list" id="file-list"></ul>
+      <button type="submit" class="submit-btn">Upload All</button>
+    </form>
+    <div class="hint">
+      <h4>Supported file types</h4>
+      <ul>
+        <li>.mp4 → Video</li>
+        <li>.pdf → PDF</li>
+        <li>.mp3 → Audio</li>
+        <li>.docx → Document (converted to rich text automatically)</li>
+      </ul>
+    </div>
+
+    {% if results %}
+    <div class="results">
+      <h3>Upload Results</h3>
+      <ul>
+        {% for r in results %}
+          <li>
+            {% if r.success %}
+              <span class="ok">✓</span> {{ r.filename }} — added as {{ r.asset_type }}
+            {% else %}
+              <span class="fail">✗</span> {{ r.filename }} — {{ r.error }}
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('file-input');
+  const fileList = document.getElementById('file-list');
+
+  dropzone.addEventListener('click', () => fileInput.click());
+
+  dropzone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropzone.classList.add('dragover');
+  });
+  dropzone.addEventListener('dragleave', () => {
+    dropzone.classList.remove('dragover');
+  });
+  dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    fileInput.files = e.dataTransfer.files;
+    updateFileList();
+  });
+  fileInput.addEventListener('change', updateFileList);
+
+  function updateFileList() {
+    fileList.innerHTML = '';
+    for (const f of fileInput.files) {
+      const li = document.createElement('li');
+      li.textContent = f.name;
+      fileList.appendChild(li);
+    }
+  }
+</script>
+{% endblock %}

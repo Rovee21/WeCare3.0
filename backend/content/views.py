@@ -240,7 +240,7 @@ def log_engagement(request):
     # unable to ever complete the session.
     if session:
         is_zh = participant.language == "zh"
-        effective_video_url = (session.video_url_zh if is_zh else session.video_url)
+        effective_video_url = (session.effective_video_url_zh if is_zh else session.effective_video_url)
         effective_text_html = (session.text_content_html_zh if is_zh else session.text_content_html)
         effective_text_plain = (session.text_content_zh if is_zh else session.text_content)
         has_video = bool(effective_video_url)

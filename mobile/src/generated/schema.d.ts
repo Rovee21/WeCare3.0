@@ -248,7 +248,7 @@ export interface components {
             title_zh?: string;
             resource_type: components["schemas"]["ResourceTypeEnum"];
             /** Format: uri */
-            url: string;
+            readonly url: string;
         };
         /**
          * @description * `spouse` - Spouse
@@ -372,28 +372,19 @@ export interface components {
             readonly week_label: string;
             readonly media_types: string[];
             /** Format: uri */
-            video_url?: string;
-            /**
-             * Format: uri
-             * @description Chinese counterpart to video_url.
-             */
-            video_url_zh?: string;
+            readonly video_url: string;
+            /** Format: uri */
+            readonly video_url_zh: string;
             text_content?: string;
             text_content_zh?: string;
             /** @description Rich HTML (headings, formatting, inline images hosted on S3) generated from an uploaded .docx via the admin's 'Upload Word document' field. Can be hand-edited afterward. Falls back to text_content on mobile when empty. */
             text_content_html?: string;
             /** @description Chinese counterpart to text_content_html. */
             text_content_html_zh?: string;
-            /**
-             * Format: uri
-             * @description If set (via the admin's 'Upload PDF for Text section' field), the app shows an in-app PDF viewer for the Text tab instead of text_content_html.
-             */
-            text_content_pdf_url?: string;
-            /**
-             * Format: uri
-             * @description Chinese counterpart to text_content_pdf_url.
-             */
-            text_content_pdf_url_zh?: string;
+            /** Format: uri */
+            readonly text_content_pdf_url: string;
+            /** Format: uri */
+            readonly text_content_pdf_url_zh: string;
             readonly resources: components["schemas"]["AdditionalResource"][];
             readonly is_read: boolean;
             readonly status: components["schemas"]["StatusEnum"];

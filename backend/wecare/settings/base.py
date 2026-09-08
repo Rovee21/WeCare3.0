@@ -81,7 +81,7 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 # Raised from Django's 2.5MB default so admin-uploaded curriculum videos
-# (relayed server-side to S3 in content.services.upload_video_to_s3) aren't
+# (relayed server-side to S3 in content.services.upload_media_asset_to_s3) aren't
 # rejected with RequestDataTooBig.
 DATA_UPLOAD_MAX_MEMORY_SIZE = env.int("DATA_UPLOAD_MAX_MEMORY_SIZE", default=1024 * 1024 * 1024)
 FILE_UPLOAD_MAX_MEMORY_SIZE = env.int("FILE_UPLOAD_MAX_MEMORY_SIZE", default=1024 * 1024 * 1024)

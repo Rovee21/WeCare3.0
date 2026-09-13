@@ -1,4 +1,6 @@
 from django.db import models
+from django.db.models.signals import pre_delete
+from django.dispatch import receiver
 from django.contrib.auth.models import User
 
 
@@ -10,8 +12,10 @@ class MediaAsset(models.Model):
     TYPE_PDF = "PDF"
     TYPE_AUDIO = "Audio"
     TYPE_DOCUMENT = "Document"
+    TYPE_IMAGE = "Image"
     TYPE_CHOICES = [
-        (TYPE_VIDEO, "Video"), (TYPE_PDF, "PDF"), (TYPE_AUDIO, "Audio"), (TYPE_DOCUMENT, "Document"),
+        (TYPE_VIDEO, "Video"), (TYPE_PDF, "PDF"), (TYPE_AUDIO, "Audio"),
+        (TYPE_DOCUMENT, "Document"), (TYPE_IMAGE, "Image"),
     ]
 
     title = models.CharField(max_length=200)
@@ -30,6 +34,21 @@ class MediaAsset(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.asset_type})"
+
+
+@receiver(pre_delete, sender=MediaAsset)
+def _cleanup_media_asset_s3(sender, instance, **kwargs):
+    """Deletes a MediaAsset's S3 object(s) when its row is deleted, whether via the
+    admin's single delete, "Delete selected" bulk action, or any other .delete() /
+    queryset.delete() call — a signal (not a Model.delete() override) is required for
+    the bulk-queryset case, since QuerySet.delete() doesn't call each instance's own
+    delete() method, only sends pre_delete/post_delete signals per object."""
+    from .services import _delete_s3_object_by_url, extract_image_urls
+
+    _delete_s3_object_by_url(instance.file_url)
+    if instance.asset_type == MediaAsset.TYPE_DOCUMENT:
+        for img_url in extract_image_urls(instance.html_content):
+            _delete_s3_object_by_url(img_url)
 
 
 class Session(models.Model):

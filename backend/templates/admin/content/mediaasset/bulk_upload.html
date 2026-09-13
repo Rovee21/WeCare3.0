@@ -24,7 +24,9 @@
   .results ul { list-style: none; padding: 0; margin: 0; font-size: 13px; }
   .results li { padding: 6px 0; border-bottom: 1px solid #243447; color: #ddd; }
   .results .ok { color: #6fcf6f; }
+  .results .replaced { color: #f2c94c; }
   .results .fail { color: #e57373; }
+  .replace-toggle { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; color: #ddd; font-size: 13px; }
 </style>
 
 <div class="upload-box">
@@ -36,6 +38,11 @@
        detected from its extension automatically, so there's nothing to fill in per file.</p>
     <form method="post" enctype="multipart/form-data" id="bulk-upload-form">
       {% csrf_token %}
+      <label class="replace-toggle">
+        <input type="checkbox" name="replace_existing">
+        Replace existing duplicates (same title + type) instead of skipping them — leave
+        unchecked to skip and report any file that already exists in the library.
+      </label>
       <div class="dropzone" id="dropzone">
         Drop files here, or click to choose files
       </div>
@@ -48,8 +55,9 @@
       <ul>
         <li>.mp4 → Video</li>
         <li>.pdf → PDF</li>
-        <li>.mp3 → Audio</li>
+        <li>.mp3, .m4a → Audio</li>
         <li>.docx → Document (converted to rich text automatically)</li>
+        <li>.jpg, .jpeg, .png → Image</li>
       </ul>
     </div>
 
@@ -59,8 +67,10 @@
       <ul>
         {% for r in results %}
           <li>
-            {% if r.success %}
+            {% if r.status == "created" %}
               <span class="ok">✓</span> {{ r.filename }} — added as {{ r.asset_type }}
+            {% elif r.status == "replaced" %}
+              <span class="replaced">↻</span> {{ r.filename }} — replaced existing {{ r.asset_type }} asset
             {% else %}
               <span class="fail">✗</span> {{ r.filename }} — {{ r.error }}
             {% endif %}

@@ -377,7 +377,7 @@ export interface components {
             readonly video_url_zh: string;
             text_content?: string;
             text_content_zh?: string;
-            /** @description Rich HTML (headings, formatting, inline images hosted on S3) generated from an uploaded .docx via the admin's 'Upload Word document' field. Can be hand-edited afterward. Falls back to text_content on mobile when empty. */
+            /** @description Rich HTML (headings, formatting, inline images hosted on S3) generated from an uploaded .docx (or picked Media Library document) via the admin's 'Upload Word document' field. Can be hand-edited afterward. Falls back to text_content on mobile when empty. */
             text_content_html?: string;
             /** @description Chinese counterpart to text_content_html. */
             text_content_html_zh?: string;

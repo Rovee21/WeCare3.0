@@ -9,17 +9,25 @@ from .models import (
     DailyNotificationSettings, MediaAsset,
 )
 from .services import (
-    convert_docx_to_html, upload_image_to_s3, upload_media_asset_to_s3, build_media_asset_fields,
+    convert_docx_to_html, upload_image_to_s3, upload_media_asset_to_s3,
+    create_or_replace_media_asset,
 )
 
 
 _MEDIA_ASSET_VALIDATION = {
     MediaAsset.TYPE_VIDEO: (("video/mp4",), (".mp4",), "Please upload an MP4 video file."),
     MediaAsset.TYPE_PDF: (("application/pdf",), (".pdf",), "Please upload a PDF file."),
-    MediaAsset.TYPE_AUDIO: (("audio/mpeg",), (".mp3",), "Please upload an MP3 audio file."),
+    MediaAsset.TYPE_AUDIO: (
+        ("audio/mpeg", "audio/mp4", "audio/x-m4a"), (".mp3", ".m4a"),
+        "Please upload an MP3 or M4A audio file.",
+    ),
     MediaAsset.TYPE_DOCUMENT: (
         ("application/vnd.openxmlformats-officedocument.wordprocessingml.document",),
         (".docx",), "Please upload a .docx Word document.",
+    ),
+    MediaAsset.TYPE_IMAGE: (
+        ("image/jpeg", "image/png"), (".jpg", ".jpeg", ".png"),
+        "Please upload a JPG or PNG image.",
     ),
 }
 
@@ -28,7 +36,11 @@ _EXT_TO_ASSET_TYPE = {
     ".mp4": MediaAsset.TYPE_VIDEO,
     ".pdf": MediaAsset.TYPE_PDF,
     ".mp3": MediaAsset.TYPE_AUDIO,
+    ".m4a": MediaAsset.TYPE_AUDIO,
     ".docx": MediaAsset.TYPE_DOCUMENT,
+    ".jpg": MediaAsset.TYPE_IMAGE,
+    ".jpeg": MediaAsset.TYPE_IMAGE,
+    ".png": MediaAsset.TYPE_IMAGE,
 }
 
 
@@ -39,35 +51,62 @@ class MediaAssetAdminForm(forms.ModelForm):
         help_text="Uploads directly to S3 and fills in File URL below. Pick the matching "
                    "Type above before uploading. Required when creating a new asset.",
     )
+    replace_existing = forms.BooleanField(
+        required=False,
+        label="Replace existing asset with this title/type",
+        help_text="If an asset with this exact title and type already exists, check this "
+                   "to overwrite it in place — any session/resource already using it picks "
+                   "up the new file automatically, no re-pick needed. Leave unchecked to "
+                   "be stopped instead of accidentally creating a duplicate.",
+    )
 
     class Meta:
         model = MediaAsset
-        fields = ["title", "asset_type", "file_upload", "file_url", "html_content"]
+        fields = ["title", "asset_type", "file_upload", "replace_existing", "file_url", "html_content"]
 
     def clean(self):
         cleaned_data = super().clean()
         f = cleaned_data.get("file_upload")
         asset_type = cleaned_data.get("asset_type")
+        title = cleaned_data.get("title")
         if not self.instance.pk and not f:
             raise forms.ValidationError("Please upload a file.")
         if f and asset_type:
             content_types, exts, error = _MEDIA_ASSET_VALIDATION[asset_type]
             if not (f.content_type in content_types or f.name.lower().endswith(exts)):
                 raise forms.ValidationError(error)
-            try:
-                # file_url/html_content/original_filename are marked readonly on
-                # MediaAssetAdmin once the object has a pk (and file_url/original_filename
-                # are excluded from the form entirely on add too) — Django's admin
-                # excludes readonly/unlisted fields from the ModelForm it builds, so
-                # cleaned_data assignments for them are silently dropped by
-                # construct_instance(). Setting them directly on self.instance instead
-                # survives regardless, since construct_instance() only touches fields
-                # that are actually part of the form.
-                for key, value in build_media_asset_fields(f, asset_type).items():
-                    setattr(self.instance, key, value)
-            except Exception as e:
-                raise forms.ValidationError(f"Upload failed: {e}")
+        if not self.instance.pk and title and asset_type:
+            dup = MediaAsset.objects.filter(title=title, asset_type=asset_type).exists()
+            if dup and not cleaned_data.get("replace_existing"):
+                raise forms.ValidationError(
+                    f"An asset named \"{title}\" ({asset_type}) already exists. Check "
+                    "\"Replace existing asset with this title/type\" below to overwrite "
+                    "it, or change the title to upload this as a separate new asset."
+                )
         return cleaned_data
+
+
+# FK fields elsewhere in this app that point at MediaAsset (all related_name="+", so no
+# reverse accessor exists to introspect this list automatically — keep in sync with
+# models.py if a new asset-picker field is ever added).
+_SESSION_ASSET_FIELDS = [
+    "video_asset", "video_asset_zh", "text_pdf_asset", "text_pdf_asset_zh",
+    "docx_asset", "docx_asset_zh",
+]
+
+
+def _media_asset_usage_labels(asset):
+    """Human-readable descriptions of every Session/AdditionalResource currently
+    pointing at this asset, or [] if it's unused. Used to block deletion of an
+    in-use asset rather than silently unlinking it (SET_NULL) and destroying its S3
+    file out from under a live session."""
+    labels = []
+    for field in _SESSION_ASSET_FIELDS:
+        for s in Session.objects.filter(**{field: asset}):
+            labels.append(f'Session "{s}" ({field})')
+    for r in AdditionalResource.objects.filter(media_asset=asset).select_related("session"):
+        labels.append(f'Additional Resource "{r.title}" on Session "{r.session}"')
+    return labels
 
 
 @admin.register(MediaAsset)
@@ -77,10 +116,55 @@ class MediaAssetAdmin(admin.ModelAdmin):
     list_filter = ["asset_type"]
     search_fields = ["title"]
 
+    def has_delete_permission(self, request, obj=None):
+        # Blocks both the single-object delete view (raises PermissionDenied there,
+        # caught and turned into a friendly message by delete_view below) and the
+        # changelist's "Delete selected" bulk action (Django's built-in delete_selected
+        # aborts the whole batch if any selected object fails this check).
+        if obj is not None and _media_asset_usage_labels(obj):
+            return False
+        return super().has_delete_permission(request, obj)
+
+    def delete_view(self, request, object_id, extra_context=None):
+        from django.contrib import messages
+        from django.shortcuts import redirect
+
+        obj = self.get_object(request, object_id)
+        if obj is not None:
+            labels = _media_asset_usage_labels(obj)
+            if labels:
+                self.message_user(
+                    request,
+                    f'Cannot delete "{obj}" — it\'s still in use by: {"; ".join(labels)}. '
+                    "Unlink it there first (pick a different asset, upload a replacement, "
+                    "or clear the field), then delete it.",
+                    level=messages.ERROR,
+                )
+                return redirect(f"/admin/content/mediaasset/{object_id}/change/")
+        return super().delete_view(request, object_id, extra_context)
+
     def get_fields(self, request, obj=None):
         if obj is not None:
             return ["title", "asset_type", "file_url"]
-        return ["title", "asset_type", "file_upload", "file_url"]
+        return ["title", "asset_type", "file_upload", "replace_existing", "file_url"]
+
+    def save_model(self, request, obj, form, change):
+        if change:
+            obj.save()
+            return
+        # clean() already blocks the unconfirmed-duplicate case, so this only ever
+        # returns "created" or "replaced" here.
+        asset, status = create_or_replace_media_asset(
+            obj.title, obj.asset_type,
+            form.cleaned_data.get("file_upload"), form.cleaned_data.get("replace_existing"),
+        )
+        obj.pk = asset.pk
+        obj.file_url = asset.file_url
+        obj.html_content = asset.html_content
+        obj.original_filename = asset.original_filename
+        obj.uploaded_at = asset.uploaded_at
+        if status == "replaced":
+            self.message_user(request, f'Replaced the existing "{asset.title}" ({asset.asset_type}) asset with this upload.')
 
     def get_readonly_fields(self, request, obj=None):
         # An asset's file/type is set once at upload time — to replace it, upload a
@@ -110,19 +194,27 @@ class MediaAssetAdmin(admin.ModelAdmin):
     def bulk_upload_view(self, request):
         results = []
         if request.method == "POST":
+            replace_existing = request.POST.get("replace_existing") == "on"
             for f in request.FILES.getlist("files"):
                 filename = f.name
                 ext = Path(filename).suffix.lower()
                 asset_type = _EXT_TO_ASSET_TYPE.get(ext)
                 if not asset_type:
-                    results.append({"filename": filename, "success": False, "error": f"Unsupported file type ({ext or 'no extension'})"})
+                    results.append({"filename": filename, "status": "error", "error": f"Unsupported file type ({ext or 'no extension'})"})
                     continue
+                title = Path(filename).stem
                 try:
-                    fields = build_media_asset_fields(f, asset_type)
-                    MediaAsset.objects.create(title=Path(filename).stem, asset_type=asset_type, **fields)
-                    results.append({"filename": filename, "success": True, "asset_type": asset_type})
+                    asset, status = create_or_replace_media_asset(title, asset_type, f, replace_existing)
+                    if status == "skipped_duplicate":
+                        results.append({
+                            "filename": filename, "status": "skipped",
+                            "error": f'An asset named "{title}" ({asset_type}) already exists — not uploaded. '
+                                     'Check "Replace existing duplicates" above and re-upload to overwrite it.',
+                        })
+                    else:
+                        results.append({"filename": filename, "status": status, "asset_type": asset_type})
                 except Exception as e:
-                    results.append({"filename": filename, "success": False, "error": str(e)})
+                    results.append({"filename": filename, "status": "error", "error": str(e)})
 
         context = {
             **self.admin_site.each_context(request),

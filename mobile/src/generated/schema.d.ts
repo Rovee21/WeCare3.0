@@ -251,12 +251,15 @@ export interface components {
             readonly url: string;
         };
         /**
-         * @description * `spouse` - Spouse
+         * @description * `` - Unknown
+         *     * `spouse` - Spouse
          *     * `children` - Children / Adult Child
          *     * `relative` - Other Relative
          * @enum {string}
          */
         AdrdRelationshipGroupEnum: "spouse" | "children" | "relative";
+        /** @enum {unknown} */
+        BlankEnum: "";
         DirectUploadRequest: {
             /** Format: uri */
             audio: string;
@@ -308,20 +311,23 @@ export interface components {
             adrd_relationship_group: string;
         };
         /**
-         * @description * `intervention` - Intervention
+         * @description * `` - Unknown
+         *     * `intervention` - Intervention
          *     * `control` - Control
          * @enum {string}
          */
         Group1Enum: "intervention" | "control";
         /**
-         * @description * `mild` - Mild
+         * @description * `` - Unknown
+         *     * `mild` - Mild
          *     * `moderate` - Moderate
          *     * `severe` - Severe
          * @enum {string}
          */
         Group2Enum: "mild" | "moderate" | "severe";
         /**
-         * @description * `high` - High Stress
+         * @description * `` - Unknown
+         *     * `high` - High Stress
          *     * `low` - Low Stress
          * @enum {string}
          */
@@ -341,10 +347,40 @@ export interface components {
         ParticipantProfile: {
             readonly participant_id: string;
             language?: components["schemas"]["LanguageEnum"];
-            group1: components["schemas"]["Group1Enum"];
-            group2: components["schemas"]["Group2Enum"];
-            group3: components["schemas"]["Group3Enum"];
-            adrd_relationship_group: components["schemas"]["AdrdRelationshipGroupEnum"];
+            /**
+             * @description Study arm — may not be known at initial enrollment; can be filled in later.
+             *
+             *     * `` - Unknown
+             *     * `intervention` - Intervention
+             *     * `control` - Control
+             */
+            group1?: components["schemas"]["Group1Enum"] | components["schemas"]["BlankEnum"];
+            /**
+             * @description ADRD stage — may not be known at initial enrollment; can be filled in later.
+             *
+             *     * `` - Unknown
+             *     * `mild` - Mild
+             *     * `moderate` - Moderate
+             *     * `severe` - Severe
+             */
+            group2?: components["schemas"]["Group2Enum"] | components["schemas"]["BlankEnum"];
+            /**
+             * @description Stress level — may not be known at initial enrollment; can be filled in later.
+             *
+             *     * `` - Unknown
+             *     * `high` - High Stress
+             *     * `low` - Low Stress
+             */
+            group3?: components["schemas"]["Group3Enum"] | components["schemas"]["BlankEnum"];
+            /**
+             * @description Caregiver relationship — may not be known at initial enrollment; can be filled in later.
+             *
+             *     * `` - Unknown
+             *     * `spouse` - Spouse
+             *     * `children` - Children / Adult Child
+             *     * `relative` - Other Relative
+             */
+            adrd_relationship_group?: components["schemas"]["AdrdRelationshipGroupEnum"] | components["schemas"]["BlankEnum"];
             /**
              * @description Cohort-anchored week number: 0 while waitlisted (cohort hasn't started, or has
              *     no CohortStartDate yet), otherwise the same value automatic_gated_week() computes.

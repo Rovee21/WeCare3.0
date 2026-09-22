@@ -8,26 +8,35 @@
 {% endblock %}
 
 {% block object-tools %}
-  {% include "admin/_back_button.html" with back_url="/admin/" back_label="Back to Admin Home" %}
-  {{ block.super }}
-{% endblock %}
-{% block object-tools-items %}
-  {{ block.super }}
-  <li>
-    <a href="{{ send_notification_url }}" class="historylink" style="background:#1F6B9A;color:#fff;padding:6px 14px;border-radius:4px;text-decoration:none;font-size:13px;">
-      ✉ Send Notification
-    </a>
-  </li>
-  <li>
-    <a href="{{ import_csv_url }}" class="historylink" style="background:#1e8449;color:#fff;padding:6px 14px;border-radius:4px;text-decoration:none;font-size:13px;">
-      ⬆ Import CSV/Excel
-    </a>
-  </li>
-  <li>
-    <a href="{{ recordings_url }}" class="historylink" style="background:#7b3fa0;color:#fff;padding:6px 14px;border-radius:4px;text-decoration:none;font-size:13px;">
-      🔊 Voice Recordings
-    </a>
-  </li>
+  <div style="display:flex; flex-direction:column; gap:10px; float:none; margin:0 0 20px 0; position:static;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      {% include "admin/_back_button.html" with back_url="/admin/" back_label="Back to Admin Home" %}
+      <ul style="list-style:none; margin:0; padding:0; display:flex; gap:10px;">
+        <li style="margin:0; padding:0; float:none; height:auto; list-style-type:none;">
+          <a href="{% url 'admin:participants_participant_add' %}" style="background:#333;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:14px;font-weight:600;display:inline-block;white-space:nowrap;">
+            + Add Participant
+          </a>
+        </li>
+        <li style="margin:0; padding:0; float:none; height:auto; list-style-type:none;">
+          <a href="{{ import_csv_url }}" style="background:#1e8449;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:14px;font-weight:600;display:inline-block;white-space:nowrap;">
+            ⬆ Import Participant from CSV/Excel
+          </a>
+        </li>
+      </ul>
+    </div>
+    <ul style="list-style:none; margin:0; padding:0; display:flex; gap:8px; justify-content:flex-end;">
+      <li style="margin:0; padding:0; float:none; height:auto; list-style-type:none;">
+        <a href="{{ send_notification_url }}" style="background:#1F6B9A;color:#fff;padding:6px 14px;border-radius:4px;text-decoration:none;font-size:12px;display:inline-block;">
+          ✉ Send Notification
+        </a>
+      </li>
+      <li style="margin:0; padding:0; float:none; height:auto; list-style-type:none;">
+        <a href="{{ recordings_url }}" style="background:#7b3fa0;color:#fff;padding:6px 14px;border-radius:4px;text-decoration:none;font-size:12px;display:inline-block;">
+          🔊 Voice Recordings
+        </a>
+      </li>
+    </ul>
+  </div>
 {% endblock %}
 {% block pagination %}
   {{ block.super }}

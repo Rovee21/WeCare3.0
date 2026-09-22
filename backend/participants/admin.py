@@ -1,6 +1,7 @@
+from django import forms
 from django.template.response import TemplateResponse
 from django.urls import path
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.conf import settings
 from django.core.mail import send_mail
 from django.utils.html import format_html
@@ -22,7 +23,6 @@ FIELD_SYNONYMS = {
     'email': ['email', 'email address', 'e-mail', 'emailaddress', 'q_email'],
     'first_name': ['first name', 'firstname', 'first', 'given name'],
     'last_name': ['last name', 'lastname', 'last', 'surname', 'family name'],
-    'label': ['label', 'display name', 'nickname'],
     'gender': ['gender', 'sex'],
     'age': ['age', 'participant age'],
     'relationship': ['relationship', 'care relationship', 'relationship to care recipient', 'adrd relationship'],
@@ -201,11 +201,57 @@ def _setup_inlines():
 _setup_inlines()
 
 
+class ParticipantAdminForm(forms.ModelForm):
+    class Meta:
+        model = Participant
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Cohort used to be a bare number spinner — replaced with a dropdown showing
+        # each configured cohort's number + label, so an admin can pick the right one
+        # by name instead of having to remember/guess numbers. Cohorts must be created
+        # on the Cohort Start Dates page first; this dropdown only offers ones that
+        # already exist there (plus the participant's own current value, even if it has
+        # no CohortStartDate yet — e.g. a stray number from a CSV import — so opening an
+        # existing participant never breaks) and an explicit "not yet assigned" option.
+        known = {c.cohort: str(c) for c in CohortStartDate.objects.order_by("cohort")}
+        current = getattr(self.instance, "cohort", None)
+        if current is not None and current not in known:
+            known[current] = f"Cohort {current} (no start date configured yet)"
+        choices = [("", "— Not yet assigned —")] + sorted(known.items())
+        self.fields["cohort"] = forms.TypedChoiceField(
+            choices=choices, coerce=int, required=False, empty_value=None,
+            label="Cohort",
+            help_text="Which recruitment wave this participant belongs to. Add new cohorts "
+                       "on the Cohort Start Dates page first, then pick one here.",
+        )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        # Once a participant's cohort has started, clearing a baseline field they'd
+        # already had set is a destructive regression during an active study — block
+        # it outright. (Still-blank fields that were never filled in are fine — that
+        # case is only warned about, in ParticipantAdmin.save_model, not blocked here.)
+        if self.instance.pk and not self.instance.is_waitlisted():
+            for field, label in Participant.BASELINE_FIELDS:
+                old_value = getattr(self.instance, field)
+                new_value = cleaned_data.get(field)
+                if old_value and not new_value:
+                    raise forms.ValidationError(
+                        f'Cannot clear "{label}" — this participant\'s cohort has already '
+                        "started. Editing baseline details back to blank isn't allowed "
+                        "once the study is underway for them."
+                    )
+        return cleaned_data
+
+
 @admin.register(Participant)
 class ParticipantAdmin(admin.ModelAdmin):
+    form = ParticipantAdminForm
     list_display = [
         "participant_id_display", "email", "language",
-        "cohort", "group1", "group2", "group3",
+        "cohort", "cohort_label_display", "group1", "group2", "group3",
         "adrd_relationship_group",
         "is_enrolled", "enrollment_code_display", "current_week_display",
         "sessions_completed", "vj_count", "last_active",
@@ -221,9 +267,28 @@ class ParticipantAdmin(admin.ModelAdmin):
     inlines = [SessionOverrideInline]
     list_per_page = 50
 
+    def cohort_label_display(self, obj):
+        c = CohortStartDate.objects.filter(cohort=obj.cohort).first()
+        return (c.label if c and c.label else "—")
+    cohort_label_display.short_description = "Cohort Label"
+    cohort_label_display.admin_order_field = "cohort"
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if not obj.is_waitlisted():
+            missing = obj.missing_baseline_fields()
+            if missing:
+                self.message_user(
+                    request,
+                    f'"{obj}" — this participant\'s cohort has already started, but the '
+                    f'following details are still missing: {", ".join(missing)}. Please '
+                    "fill them in.",
+                    level=messages.WARNING,
+                )
+
     fieldsets = (
         ("Identity", {
-            "fields": ("participant_id_display", "email", "language", "is_enrolled"),
+            "fields": ("participant_id_display", "email", "first_name", "last_name", "language", "is_enrolled"),
         }),
         ("Demographics", {
             "fields": ("gender", "age"),
@@ -280,6 +345,7 @@ class ParticipantAdmin(admin.ModelAdmin):
             path('import-csv/', self.admin_site.admin_view(self.csv_import_view), name='participant_csv_import'),
             path('send-notification/', self.admin_site.admin_view(self.send_notification_view), name='participant_send_notification'),
             path('recordings/', self.admin_site.admin_view(self.recordings_view), name='participant_recordings'),
+            path('download-import-template/', self.admin_site.admin_view(self.download_import_template_view), name='participant_download_import_template'),
         ]
         return custom + urls
 
@@ -288,7 +354,41 @@ class ParticipantAdmin(admin.ModelAdmin):
         extra_context['import_csv_url'] = '/admin/participants/participant/import-csv/'
         extra_context['send_notification_url'] = '/admin/participants/participant/send-notification/'
         extra_context['recordings_url'] = '/admin/participants/participant/recordings/'
+        extra_context['download_template_url'] = '/admin/participants/participant/download-import-template/'
         return super().changelist_view(request, extra_context=extra_context)
+
+    def download_import_template_view(self, request):
+        from openpyxl.styles import Font, PatternFill
+        from openpyxl.utils import get_column_letter
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Participants"
+
+        headers = [
+            "Email (Mandatory)", "First Name", "Last Name",
+            "Gender", "Age", "Relationship", "Group1", "Group2", "Group3", "Cohort",
+        ]
+        example_row = [
+            "jane.doe@example.com", "Jane", "Doe",
+            "female", 68, "spouse", "intervention", "moderate", "high", 1,
+        ]
+        ws.append(headers)
+        ws.append(example_row)
+
+        email_cell = ws.cell(row=1, column=1)
+        email_cell.font = Font(bold=True)
+        email_cell.fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+
+        for col_idx in range(1, len(headers) + 1):
+            ws.column_dimensions[get_column_letter(col_idx)].width = 22
+
+        response = HttpResponse(
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        response["Content-Disposition"] = 'attachment; filename="participant_import_template.xlsx"'
+        wb.save(response)
+        return response
 
     def recordings_view(self, request):
         from journal.models import VoiceJournalEntry
@@ -333,7 +433,6 @@ class ParticipantAdmin(admin.ModelAdmin):
                 'email':                   request.POST.get('map_email', ''),
                 'first_name':              request.POST.get('map_first_name', ''),
                 'last_name':               request.POST.get('map_last_name', ''),
-                'label':                   request.POST.get('map_label', ''),
                 'gender':                  request.POST.get('map_gender', ''),
                 'age':                     request.POST.get('map_age', ''),
                 'adrd_relationship_group': request.POST.get('map_relationship', ''),
@@ -343,10 +442,36 @@ class ParticipantAdmin(admin.ModelAdmin):
                 'cohort':                  request.POST.get('map_cohort', ''),
             }
 
-            created, skipped, errors = 0, 0, []
+            valid_choices = {
+                'group1': dict(Participant.GROUP1_CHOICES),
+                'group2': dict(Participant.GROUP2_CHOICES),
+                'group3': dict(Participant.GROUP3_CHOICES),
+                'adrd_relationship_group': dict(Participant.RELATIONSHIP_CHOICES),
+            }
+            known_cohorts = set(CohortStartDate.objects.values_list('cohort', flat=True))
+
+            def _clean_choice(value, field, row_email, warnings_list):
+                # An unrecognized value (e.g. a typo like "superb" instead of
+                # mild/moderate/severe) is left blank rather than stored as garbage —
+                # a garbage value would otherwise look "complete" to
+                # missing_baseline_fields() while matching no real targeting rule.
+                if value and value not in valid_choices[field]:
+                    warnings_list.append(
+                        f'Row {row_email}: "{value}" is not a valid value for {field} — left blank.'
+                    )
+                    return ''
+                return value
+
+            created, skipped, errors, warnings = 0, 0, [], []
+            new_participants = []
             for row in reader:
                 email = row.get(mapping['email'], '').strip()
                 if not email:
+                    skipped += 1
+                    continue
+                # Guards against importing the Download Template's own example row if
+                # someone forgets to delete it before uploading.
+                if email.lower() == 'jane.doe@example.com':
                     skipped += 1
                     continue
                 if Participant.objects.filter(email=email).exists():
@@ -355,24 +480,38 @@ class ParticipantAdmin(admin.ModelAdmin):
                 try:
                     age_val = row.get(mapping['age'], '').strip()
                     cohort_val = row.get(mapping['cohort'], '').strip()
+                    cohort_num = int(cohort_val) if cohort_val.isdigit() else None
+                    if cohort_num is not None and cohort_num not in known_cohorts:
+                        warnings.append(
+                            f'Row {email}: cohort {cohort_num} doesn\'t exist yet — left '
+                            f"unassigned. Please create Cohort {cohort_num} on the Cohort "
+                            "Start Dates page first, then edit this participant to assign it."
+                        )
+                        cohort_num = None
                     p = Participant(
                         email=email,
                         first_name=row.get(mapping['first_name'], '').strip(),
                         last_name=row.get(mapping['last_name'], '').strip(),
-                        label=row.get(mapping['label'], '').strip(),
                         gender=row.get(mapping['gender'], '').strip().lower()[:10],
                         age=int(age_val) if age_val.isdigit() else None,
-                        adrd_relationship_group=row.get(mapping['adrd_relationship_group'], '').strip().lower()[:20] or 'relative',
-                        group1=row.get(mapping['group1'], '').strip().lower()[:20] or 'intervention',
-                        group2=row.get(mapping['group2'], '').strip().lower()[:20] or 'moderate',
-                        group3=row.get(mapping['group3'], '').strip().lower()[:20] or 'low',
-                        cohort=int(cohort_val) if cohort_val.isdigit() else 1,
+                        # Left blank (not guessed/defaulted) when not provided — same as
+                        # a manually-added participant, so incomplete-profile warnings
+                        # below are meaningful instead of being masked by a fabricated value.
+                        adrd_relationship_group=_clean_choice(
+                            row.get(mapping['adrd_relationship_group'], '').strip().lower()[:20],
+                            'adrd_relationship_group', email, warnings,
+                        ),
+                        group1=_clean_choice(row.get(mapping['group1'], '').strip().lower()[:20], 'group1', email, warnings),
+                        group2=_clean_choice(row.get(mapping['group2'], '').strip().lower()[:20], 'group2', email, warnings),
+                        group3=_clean_choice(row.get(mapping['group3'], '').strip().lower()[:20], 'group3', email, warnings),
+                        cohort=cohort_num,
                         language='en',
                         enrollment_week=1,
                     )
                     p.save()
                     p.generate_enrollment_code()
                     created += 1
+                    new_participants.append(p)
                 except Exception as e:
                     errors.append(f"Row {email}: {e}")
 
@@ -380,6 +519,24 @@ class ParticipantAdmin(admin.ModelAdmin):
             if errors:
                 for err in errors[:5]:
                     self.message_user(request, err, level='warning')
+            if warnings:
+                for warn in warnings[:10]:
+                    self.message_user(request, warn, level=messages.WARNING)
+
+            # Same "cohort already started but details incomplete" warning a manually-
+            # added participant gets (ParticipantAdmin.save_model) — CSV import creates
+            # participants directly, bypassing that path, so it needs its own check.
+            incomplete = [
+                (p, p.missing_baseline_fields()) for p in new_participants
+                if not p.is_waitlisted() and p.missing_baseline_fields()
+            ]
+            for p, missing in incomplete[:10]:
+                self.message_user(
+                    request,
+                    f'"{p}" — cohort already started but these details are still missing: '
+                    f'{", ".join(missing)}. Please fill them in.',
+                    level=messages.WARNING,
+                )
             return self._redirect_to_changelist(request)
 
         # Step 2: Preview (has file upload)
@@ -409,7 +566,6 @@ class ParticipantAdmin(admin.ModelAdmin):
                     'email': 'Email *',
                     'first_name': 'First Name',
                     'last_name': 'Last Name',
-                    'label': 'Label / Display Name',
                     'gender': 'Gender',
                     'age': 'Age',
                     'relationship': 'Care Relationship/ADRD relationship group - Spouse, Children/Adult Child, Other Relative',
@@ -669,10 +825,33 @@ class ParticipantAdmin(admin.ModelAdmin):
     def current_week_display(self, obj):
         if not obj.is_enrolled:
             return "—"
+
+        start = obj.program_start_date()
+        if obj.is_waitlisted():
+            if obj.cohort is None:
+                detail = "No cohort has been assigned yet."
+            elif start is None:
+                detail = f"Cohort {obj.cohort} has no start date configured yet."
+            else:
+                detail = f"Cohort {obj.cohort} starts {start.strftime('%Y-%b-%d')} (in the future)."
+            return format_html(
+                '<span style="background:#fff3e0;color:#e65100;padding:2px 8px;border-radius:10px;font-weight:600;">Waitlisted</span>'
+                '<div style="color:#888;font-size:12px;margin-top:4px;">{}</div>',
+                detail,
+            )
+
         week = obj.current_week_number
+        automatic = obj.automatic_gated_week()
+        detail = f"Cohort {obj.cohort} started {start.strftime('%Y-%b-%d')}." if start else ""
+        if obj.enrollment_week and obj.enrollment_week > automatic:
+            detail += (
+                f" Manually advanced via Enrollment Week override — calendar/completion "
+                f"alone would currently give Week {automatic}."
+            )
         return format_html(
-            '<span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:10px;font-weight:600;">Week {}</span>',
-            week,
+            '<span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:10px;font-weight:600;">Week {}</span>'
+            '<div style="color:#888;font-size:12px;margin-top:4px;">{}</div>',
+            week, detail,
         )
     current_week_display.short_description = "Current Week"
 
@@ -784,6 +963,38 @@ class ParticipantAdmin(admin.ModelAdmin):
         self.message_user(request, f"Generated device transfer code(s) for {count} participant(s).")
 
 
+class CohortStartDateAdminForm(forms.ModelForm):
+    class Meta:
+        model = CohortStartDate
+        fields = "__all__"
+
+    def clean(self):
+        from django.utils import timezone as dj_timezone
+
+        cleaned_data = super().clean()
+        cohort = cleaned_data.get("cohort")
+        start_date = cleaned_data.get("program_start_date")
+        if cohort is not None and start_date and start_date <= dj_timezone.localdate():
+            incomplete = []
+            for p in Participant.objects.filter(cohort=cohort):
+                missing = p.missing_baseline_fields()
+                if missing:
+                    incomplete.append(f"{p.participant_id} ({', '.join(missing)})")
+            if incomplete:
+                raise forms.ValidationError(
+                    f"Cannot set Cohort {cohort}'s start date to today or the past — the "
+                    f"following participants still have incomplete baseline details: "
+                    f"{'; '.join(incomplete)}. Fill those in first."
+                )
+        return cleaned_data
+
+
 @admin.register(CohortStartDate)
 class CohortStartDateAdmin(admin.ModelAdmin):
-    list_display = ["cohort", "program_start_date", "updated_at"]
+    form = CohortStartDateAdminForm
+    list_display = ["cohort", "label", "program_start_date_display", "updated_at"]
+
+    def program_start_date_display(self, obj):
+        return obj.program_start_date.strftime("%Y-%b-%d")
+    program_start_date_display.short_description = "Program Start Date"
+    program_start_date_display.admin_order_field = "program_start_date"

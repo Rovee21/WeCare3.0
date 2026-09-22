@@ -265,40 +265,50 @@ class AdditionalResourceInline(admin.TabularInline):
 class SessionAdminForm(forms.ModelForm):
     video_upload = forms.FileField(
         required=False,
-        label="Upload MP4 video",
-        help_text="Uploads directly to S3 and fills in Video URL below.",
+        label="Upload MP4 video (English)",
+        help_text="Optional. Uploads directly to S3 and fills in Video URL below.",
     )
     video_upload_zh = forms.FileField(
         required=False,
         label="Upload MP4 video (Chinese)",
-        help_text="Same as above, populates the Chinese Video URL field. If left blank, "
-                   "Mandarin-selected participants will see a 'not yet translated' message "
-                   "in place of a video, instead of the English one.",
+        help_text="Optional. Same as above, populates the Chinese Video URL field. If left "
+                   "blank, Mandarin-selected participants will see a 'not yet translated' "
+                   "message in place of a video, instead of the English one.",
     )
     docx_upload = forms.FileField(
         required=False,
-        label="Upload Word document (English)",
-        help_text="Uploads a .docx, converts it to rich text (headings/formatting, with "
-                   "inline images extracted and uploaded to S3), and fills in the HTML "
-                   "field below. The result can still be hand-edited afterward, same as "
-                   "Video URL after an MP4 upload.",
+        label="Upload Word document for text section (English)",
+        help_text=format_html(
+            "<strong>Optional.</strong> Uploads a .docx, converts it to rich text "
+            "(headings/formatting, with inline images extracted and uploaded to S3), and "
+            "fills in the HTML field below. The result can still be hand-edited "
+            "afterward, same as Video URL after an MP4 upload."
+        ),
     )
     docx_upload_zh = forms.FileField(
         required=False,
-        label="Upload Word document (Chinese)",
-        help_text="Same as above, populates the Chinese HTML field below.",
+        label="Upload Word document for text section (Chinese)",
+        help_text=format_html("<strong>Optional.</strong> Same as above, populates the Chinese HTML field below."),
     )
     text_pdf_upload = forms.FileField(
         required=False,
-        label="Upload PDF for Text section",
-        help_text="Uploads directly to S3 and fills in Text PDF URL below. When set, the "
-                   "app shows this PDF in an in-app viewer for the Text tab instead of the "
-                   "Word-doc-derived HTML above.",
+        label="Upload PDF for text section (English)",
+        help_text=format_html(
+            "<strong>Optional</strong> — only needed if a Word document isn't available "
+            "for the text section. Use one or the other, not both: uploading a PDF here "
+            "shows it in an in-app viewer for the Text tab instead of the Word-doc-derived "
+            "HTML above. <strong>Leave this empty if you're using the Word document "
+            "upload above instead.</strong>"
+        ),
     )
     text_pdf_upload_zh = forms.FileField(
         required=False,
-        label="Upload PDF for Text section (Chinese)",
-        help_text="Same as above, populates the Chinese Text PDF URL field.",
+        label="Upload PDF for text section (Chinese)",
+        help_text=format_html(
+            "<strong>Optional.</strong> Same as above, populates the Chinese Text PDF "
+            "field. <strong>Leave this empty if you're using the Word document upload "
+            "above instead.</strong>"
+        ),
     )
 
     class Meta:
@@ -462,38 +472,51 @@ class SessionAdmin(admin.ModelAdmin):
             "fields": ("target_group1", "target_group2", "target_group3", "target_relationship"),
             "description": "Leave blank to show this session to all participants in that dimension.",
         }),
-        ("Media URLs", {
-            "fields": (
-                "video_upload", "video_asset", "video_url",
-                "video_upload_zh", "video_asset_zh", "video_url_zh",
-            ),
-            "classes": ("wide",),
+        ("English Content — Video", {
+            "fields": ("video_upload", "video_asset", "video_url"),
+            "classes": ("wide", "english-fieldset"),
             "description": "Upload a new MP4, or pick an already-uploaded one from the Media "
-                            "Library below — either way it takes priority over the legacy Video "
-                            "URL field, which stays as a fallback for old sessions and pasted "
-                            "external links. Upload/pick a separate Chinese video below — if "
-                            "left blank, Mandarin-selected participants see a placeholder "
-                            "instead of the English video.",
+                            "Library — either way it takes priority over the legacy Video URL "
+                            "field below, which stays as a fallback for old sessions and pasted "
+                            "external links.",
         }),
-        ("Text Content", {
-            "fields": (
-                "docx_upload", "docx_asset", "text_content_html",
-                "docx_upload_zh", "docx_asset_zh", "text_content_html_zh",
-                "text_pdf_upload", "text_pdf_asset", "text_content_pdf_url",
-                "text_pdf_upload_zh", "text_pdf_asset_zh", "text_content_pdf_url_zh",
-                "text_content", "text_content_zh",
-            ),
-            "classes": ("wide",),
+        ("English Content — Text (Word Document)", {
+            "fields": ("docx_upload", "docx_asset", "text_content_html"),
+            "classes": ("wide", "english-fieldset"),
             "description": "Upload a .docx (or pick one from the Media Library) to auto-fill "
                             "the HTML field directly below it — embedded images are extracted "
-                            "and hosted on S3 automatically, in reading order. Either way, you "
-                            "can hand-edit the resulting HTML afterward — picking an asset only "
-                            "copies its HTML in once, it doesn't stay linked. Alternatively, "
-                            "upload a new PDF or pick one from the Media Library below — when a "
-                            "Text PDF is set (via either path), the app shows it in an in-app "
-                            "viewer for the Text tab instead of the HTML above. The plain-text "
-                            "fields below remain a fallback used by older sessions/app versions "
-                            "with no rich content.",
+                            "and hosted on S3 automatically. You can hand-edit the resulting "
+                            "HTML afterward; picking an asset only copies its HTML in once, it "
+                            "doesn't stay linked.",
+        }),
+        ("English Content — Text (PDF Alternative)", {
+            "fields": ("text_pdf_upload", "text_pdf_asset", "text_content_pdf_url", "text_content"),
+            "classes": ("wide", "english-fieldset"),
+            "description": "Only needed if a Word document isn't available above — use one or "
+                            "the other, not both. When a PDF is set here, the app shows it in "
+                            "an in-app viewer for the Text tab instead of the Word-doc-derived "
+                            "HTML above. The plain-text field remains a fallback used by older "
+                            "sessions/app versions with no rich content.",
+        }),
+        ("Chinese Content — Video", {
+            "fields": ("video_upload_zh", "video_asset_zh", "video_url_zh"),
+            "classes": ("wide", "chinese-fieldset"),
+            "description": "Chinese counterpart to the English video above. If left blank, "
+                            "Mandarin-selected participants see a \"not yet translated\" "
+                            "placeholder instead of silently falling back to English.",
+        }),
+        ("Chinese Content — Text (Word Document)", {
+            "fields": ("docx_upload_zh", "docx_asset_zh", "text_content_html_zh"),
+            "classes": ("wide", "chinese-fieldset"),
+            "description": "Chinese counterpart to the English Word document above. If left "
+                            "blank, Mandarin-selected participants see a \"not yet translated\" "
+                            "placeholder instead of silently falling back to English.",
+        }),
+        ("Chinese Content — Text (PDF Alternative)", {
+            "fields": ("text_pdf_upload_zh", "text_pdf_asset_zh", "text_content_pdf_url_zh", "text_content_zh"),
+            "classes": ("wide", "chinese-fieldset"),
+            "description": "Only needed if a Chinese Word document isn't available above — "
+                            "same either/or rule as English.",
         }),
     )
 

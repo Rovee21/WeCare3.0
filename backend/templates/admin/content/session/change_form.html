@@ -1,4 +1,11 @@
 {% extends "admin/change_form.html" %}
+{% block extrastyle %}
+  {{ block.super }}
+  <style>
+    .english-fieldset > h2 { background: #1F6B9A; }
+    .chinese-fieldset > h2 { background: #7b3fa0; }
+  </style>
+{% endblock %}
 {% block form_top %}
   {% include "admin/_back_button.html" with back_url="/admin/content/session/" back_label="Back to Session List" %}
 {% endblock %}

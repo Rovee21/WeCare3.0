@@ -13,6 +13,7 @@ class Participant(models.Model):
     GROUP1_INTERVENTION = "intervention"
     GROUP1_CONTROL = "control"
     GROUP1_CHOICES = [
+        ("", "Unknown"),
         (GROUP1_INTERVENTION, "Intervention"),
         (GROUP1_CONTROL, "Control"),
     ]
@@ -21,6 +22,7 @@ class Participant(models.Model):
     GROUP2_MODERATE = "moderate"
     GROUP2_SEVERE = "severe"
     GROUP2_CHOICES = [
+        ("", "Unknown"),
         (GROUP2_MILD, "Mild"),
         (GROUP2_MODERATE, "Moderate"),
         (GROUP2_SEVERE, "Severe"),
@@ -29,6 +31,7 @@ class Participant(models.Model):
     GROUP3_HIGH = "high"
     GROUP3_LOW = "low"
     GROUP3_CHOICES = [
+        ("", "Unknown"),
         (GROUP3_HIGH, "High Stress"),
         (GROUP3_LOW, "Low Stress"),
     ]
@@ -37,6 +40,7 @@ class Participant(models.Model):
     RELATIONSHIP_CHILDREN = "children"
     RELATIONSHIP_RELATIVE = "relative"
     RELATIONSHIP_CHOICES = [
+        ("", "Unknown"),
         (RELATIONSHIP_SPOUSE, "Spouse"),
         (RELATIONSHIP_CHILDREN, "Children / Adult Child"),
         (RELATIONSHIP_RELATIVE, "Other Relative"),
@@ -67,11 +71,30 @@ class Participant(models.Model):
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES, blank=True)
     age = models.PositiveSmallIntegerField(null=True, blank=True)
     language = models.CharField(max_length=2, choices=LANGUAGE_CHOICES, default=LANGUAGE_EN)
-    group1 = models.CharField(max_length=20, choices=GROUP1_CHOICES)
-    group2 = models.CharField(max_length=20, choices=GROUP2_CHOICES)
-    group3 = models.CharField(max_length=20, choices=GROUP3_CHOICES)
-    adrd_relationship_group = models.CharField(max_length=20, choices=RELATIONSHIP_CHOICES)
-    cohort = models.PositiveSmallIntegerField(default=1, help_text="Recruitment cohort/wave number (e.g., 1 = Cohort 1, 2 = Cohort 2). Represents which recruitment area/wave the participant belongs to — independent of group1/group2/group3.")
+    group1 = models.CharField(
+        max_length=20, choices=GROUP1_CHOICES, blank=True,
+        help_text="Study arm — may not be known at initial enrollment; can be filled in later.",
+    )
+    group2 = models.CharField(
+        max_length=20, choices=GROUP2_CHOICES, blank=True,
+        help_text="ADRD stage — may not be known at initial enrollment; can be filled in later.",
+    )
+    group3 = models.CharField(
+        max_length=20, choices=GROUP3_CHOICES, blank=True,
+        help_text="Stress level — may not be known at initial enrollment; can be filled in later.",
+    )
+    adrd_relationship_group = models.CharField(
+        max_length=20, choices=RELATIONSHIP_CHOICES, blank=True,
+        help_text="Caregiver relationship — may not be known at initial enrollment; can be filled in later.",
+    )
+    cohort = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        help_text="Recruitment cohort/wave number (e.g., 1 = Cohort 1, 2 = Cohort 2). "
+                   "Represents which recruitment area/wave the participant belongs to — "
+                   "independent of group1/group2/group3. Left unset means \"not yet "
+                   "assigned\" — the cohort must exist (see Cohort Start Dates) before a "
+                   "participant can be put in it.",
+    )
 
     enrollment_week = models.PositiveSmallIntegerField(default=1)
     enrolled_at = models.DateTimeField(null=True, blank=True)
@@ -121,6 +144,19 @@ class Participant(models.Model):
         """The date this participant's cohort's content schedule starts (Week 1 Day 1),
         or None if no CohortStartDate has been set for their cohort yet."""
         return self._cohort_start_date()
+
+    BASELINE_FIELDS = [
+        ("group1", "Group 1 (Study Arm)"),
+        ("group2", "Group 2 (ADRD Stage)"),
+        ("group3", "Group 3 (Stress Level)"),
+        ("adrd_relationship_group", "Caregiver Relationship"),
+    ]
+
+    def missing_baseline_fields(self) -> list:
+        """Labels of any baseline-survey-derived field (group1/2/3, relationship) still
+        blank — used to warn an admin once the participant's cohort has started but
+        their profile isn't fully filled in yet."""
+        return [label for field, label in self.BASELINE_FIELDS if not getattr(self, field)]
 
     def _schedule_anchor(self):
         """Datetime anchor ('day 0') for content-schedule calculations: midnight local
@@ -216,9 +252,16 @@ class Participant(models.Model):
 
 class CohortStartDate(models.Model):
     cohort = models.PositiveSmallIntegerField(unique=True, help_text="Matches Participant.cohort")
+    label = models.CharField(
+        max_length=100, blank=True,
+        help_text="Optional descriptive name, e.g. 'English speakers' or 'Wave 2 - Chinese'.",
+    )
     program_start_date = models.DateField(help_text="The date this cohort's Week 1 Day 1 content unlocks for everyone in it, regardless of individual signup date.")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Cohort {self.cohort} — starts {self.program_start_date}"
+        name = f"Cohort {self.cohort}"
+        if self.label:
+            name += f" — {self.label}"
+        return f"{name} (starts {self.program_start_date.strftime('%Y-%b-%d')})"

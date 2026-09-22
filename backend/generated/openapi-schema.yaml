@@ -293,9 +293,13 @@ components:
       - relative
       type: string
       description: |-
+        * `` - Unknown
         * `spouse` - Spouse
         * `children` - Children / Adult Child
         * `relative` - Other Relative
+    BlankEnum:
+      enum:
+      - ''
     DirectUploadRequest:
       type: object
       properties:
@@ -445,6 +449,7 @@ components:
       - control
       type: string
       description: |-
+        * `` - Unknown
         * `intervention` - Intervention
         * `control` - Control
     Group2Enum:
@@ -454,6 +459,7 @@ components:
       - severe
       type: string
       description: |-
+        * `` - Unknown
         * `mild` - Mild
         * `moderate` - Moderate
         * `severe` - Severe
@@ -463,6 +469,7 @@ components:
       - low
       type: string
       description: |-
+        * `` - Unknown
         * `high` - High Stress
         * `low` - Low Stress
     JournalPromptResponse:
@@ -500,13 +507,47 @@ components:
         language:
           $ref: '#/components/schemas/LanguageEnum'
         group1:
-          $ref: '#/components/schemas/Group1Enum'
+          description: |-
+            Study arm — may not be known at initial enrollment; can be filled in later.
+
+            * `` - Unknown
+            * `intervention` - Intervention
+            * `control` - Control
+          oneOf:
+          - $ref: '#/components/schemas/Group1Enum'
+          - $ref: '#/components/schemas/BlankEnum'
         group2:
-          $ref: '#/components/schemas/Group2Enum'
+          description: |-
+            ADRD stage — may not be known at initial enrollment; can be filled in later.
+
+            * `` - Unknown
+            * `mild` - Mild
+            * `moderate` - Moderate
+            * `severe` - Severe
+          oneOf:
+          - $ref: '#/components/schemas/Group2Enum'
+          - $ref: '#/components/schemas/BlankEnum'
         group3:
-          $ref: '#/components/schemas/Group3Enum'
+          description: |-
+            Stress level — may not be known at initial enrollment; can be filled in later.
+
+            * `` - Unknown
+            * `high` - High Stress
+            * `low` - Low Stress
+          oneOf:
+          - $ref: '#/components/schemas/Group3Enum'
+          - $ref: '#/components/schemas/BlankEnum'
         adrd_relationship_group:
-          $ref: '#/components/schemas/AdrdRelationshipGroupEnum'
+          description: |-
+            Caregiver relationship — may not be known at initial enrollment; can be filled in later.
+
+            * `` - Unknown
+            * `spouse` - Spouse
+            * `children` - Children / Adult Child
+            * `relative` - Other Relative
+          oneOf:
+          - $ref: '#/components/schemas/AdrdRelationshipGroupEnum'
+          - $ref: '#/components/schemas/BlankEnum'
         week_number:
           type: integer
           description: |-
@@ -526,10 +567,6 @@ components:
           nullable: true
           readOnly: true
       required:
-      - adrd_relationship_group
-      - group1
-      - group2
-      - group3
       - is_waitlisted
       - participant_id
       - program_start_date

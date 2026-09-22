@@ -12,6 +12,8 @@
   .hint h4 { color: #7fb3d3; font-size: 13px; margin: 0 0 8px 0; text-transform: uppercase; }
   .hint ul { color: #aaa; font-size: 13px; margin: 0; padding-left: 20px; line-height: 2; }
   .back-btn { display: inline-block; margin-bottom: 20px; padding: 8px 16px; background: #1F6B9A; color: #fff; border-radius: 6px; text-decoration: none; font-size: 13px; }
+  .template-btn { display: inline-block; margin-bottom: 24px; padding: 10px 16px; background: #1e8449; color: #fff; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600; }
+  .template-btn:hover { background: #27ae60; }
 </style>
 
 <div class="upload-box">
@@ -19,13 +21,16 @@
   <div class="upload-card">
     <h2>Import Participants from CSV or Excel</h2>
     <p>Upload a CSV or Excel (.xlsx) file exported from Qualtrics or any survey tool. You'll map columns on the next screen.</p>
+    <p>Not sure where to start? Click the button below to download an Excel template with all the expected columns and an example row.</p>
+    <a class="template-btn" href="/admin/participants/participant/download-import-template/">⬇ Download Excel Template</a>
     <form method="post" enctype="multipart/form-data">
       {% csrf_token %}
       <input type="file" name="csv_file" accept=".csv,.xlsx" class="file-input" required>
       <button type="submit" class="submit-btn">Upload & Preview →</button>
     </form>
     <div class="hint">
-      <h4>Expected fields (any column names work)</h4>
+      <h4>Expected fields (any column names work, in any order)</h4>
+      <p style="color:#aaa; font-size:13px; margin:0 0 10px 0;">It's completely fine if your columns aren't in the same order as the template — each one is matched by its name, not its position.</p>
       <ul>
         <li>Email address</li>
         <li>First name / Last name</li>

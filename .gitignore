@@ -32,6 +32,10 @@ CLAUDE.md
 # Local media files (dev only — production uses S3)
 backend/media/
 
+# Local Voice Journal recordings (health-related participant audio — belongs in the
+# private wecare-vj-audio S3 bucket only, never in git)
+backend/vj_recordings/
+
 # CONTENT_SCHEDULING_HANDOFF.md
 # SEQUENTIAL_UNLOCK_ADDENDUM.md
 wecare3-notifications-0e536142e2b6.json
@@ -43,3 +47,4 @@ zzzz.zip
 tunnel_log*
 mobile/debug_tunnel.log
 Platform Testing Notes and Observations.docx
+Screenshots for debugging/
